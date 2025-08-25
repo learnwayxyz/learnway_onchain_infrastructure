@@ -1,0 +1,34 @@
+{
+  "name": "Crown Holder",
+  "description": "Won one contest",
+  "image": "https://learnway.com/images/badges/crown_holder.png",
+  "external_url": "https://learnway.com/badges/crown_holder",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Contest"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Uncommon"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Competition"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "Win contest"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "3"
+    }
+  ],
+  "properties": {
+    "badge_type": "CROWN_HOLDER",
+    "unlock_condition": "Win one contest",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}

@@ -13,4 +13,7 @@ out/
 docs/
 
 # Dotenv file
-.env
+scripts/.env.local
+.env.*
+
+scripts/node_modules

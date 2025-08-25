@@ -1,0 +1,34 @@
+{
+  "name": "Echo Spreader",
+  "description": "Share app to more than 50 people",
+  "image": "https://learnway.com/images/badges/echo_spreader.png",
+  "external_url": "https://learnway.com/badges/echo_spreader",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Social"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Community"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "50+ referrals"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "13"
+    }
+  ],
+  "properties": {
+    "badge_type": "ECHO_SPREADER",
+    "unlock_condition": "Refer the app to more than 50 people",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}

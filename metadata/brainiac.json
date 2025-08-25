@@ -1,0 +1,34 @@
+{
+  "name": "Brainiac",
+  "description": "Completed 100% quiz without using lifeline. Need minimum 5 questions to unlock",
+  "image": "https://learnway.com/images/badges/brainiac.png",
+  "external_url": "https://learnway.com/badges/brainiac",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Perfection"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Epic"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Excellence"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "5 perfect quizzes no lifeline"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "8"
+    }
+  ],
+  "properties": {
+    "badge_type": "BRAINIAC",
+    "unlock_condition": "Complete 5 quizzes with 100% accuracy without using any lifeline",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}

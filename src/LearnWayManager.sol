@@ -26,6 +26,34 @@ interface IXPContract {
     function isRegistered(address user) external view returns (bool);
 }
 
+interface IBadgesNFT {
+    function recordQuizCompletion(
+        address user,
+        string memory quizType,
+        uint256 timeTaken,
+        bool usedLifeline,
+        bool allCorrect,
+        uint256 correctCount
+    ) external;
+    function recordBattleCompletion(
+        address user,
+        string memory battleType,
+        bool isWin,
+        uint256 points,
+        bool isHighestScore
+    ) external;
+    function recordContestWin(address user) external;
+    function updateReferralCount(address user, uint256 count) external;
+    function awardEliteBadge(address user) external;
+    function getUserBadgeStatus(address user) external view returns (
+        bool[15] memory badges,
+        uint256 totalBadges,
+        uint256 consecutiveWins,
+        uint256 dailyStreak,
+        uint256 correctAnswers
+    );
+}
+
 /**
  * @title LearnWayManager
  * @dev Central management contract for the LearnWay learn-to-earn ecosystem
@@ -67,6 +95,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     // State variables
     IGemsContract public gemsContract;
     IXPContract public xpContract;
+    IBadgesNFT public badgesContract;
 
     mapping(address => UserProfile) private _userProfiles;
     mapping(address => mapping(bytes32 => bool)) private _userAchievements;
@@ -90,7 +119,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     }
 
     modifier contractsSet() {
-        require(address(gemsContract) != address(0) && address(xpContract) != address(0), "Contracts not set");
+        require(address(gemsContract) != address(0) && address(xpContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
         _;
     }
 
@@ -99,17 +128,19 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Set the Gems and XP contract addresses
+     * @dev Set the Gems, XP, and Badges contract addresses
      * @param _gemsContract Address of the GemsContract
      * @param _xpContract Address of the XPContract
+     * @param _badgesContract Address of the BadgesNFT contract
      */
-    function setContracts(address _gemsContract, address _xpContract)
+    function setContracts(address _gemsContract, address _xpContract, address _badgesContract)
         external
         onlyOwner
     {
-        require(_gemsContract != address(0) && _xpContract != address(0), "Invalid contract addresses");
+        require(_gemsContract != address(0) && _xpContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
         gemsContract = IGemsContract(_gemsContract);
         xpContract = IXPContract(_xpContract);
+        badgesContract = IBadgesNFT(_badgesContract);
     }
 
     /**
@@ -151,6 +182,12 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
 
         emit UserRegistered(user, referralCode, block.timestamp);
 
+        // Update referral count for referrer (Echo Spreader badge)
+        if (referralCode != address(0) && gemsContract.isRegistered(referralCode)) {
+            // Get referral count from GemsContract (assuming it's tracked there)
+            // For now, we'll implement a manual update function
+        }
+
         // Check for first-time registration achievements
         _checkAchievements(user);
     }
@@ -160,11 +197,17 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param user Address of the user
      * @param score Quiz score (0-100)
      * @param correctAnswers Array of boolean values for each answer
+     * @param quizType Type of quiz ("guess_word", "fun_learn", etc.)
+     * @param timeTaken Time taken to complete the quiz in seconds
+     * @param usedLifeline Whether the user used a lifeline
      */
     function completeQuiz(
         address user,
         uint256 score,
-        bool[] memory correctAnswers
+        bool[] memory correctAnswers,
+        string memory quizType,
+        uint256 timeTaken,
+        bool usedLifeline
     )
         external
         onlyOwner
@@ -178,8 +221,12 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         gemsContract.awardQuizGems(user, score);
 
         // Record each answer for XP calculation
+        uint256 correctCount = 0;
         for (uint256 i = 0; i < correctAnswers.length; i++) {
             xpContract.recordQuizAnswer(user, correctAnswers[i]);
+            if (correctAnswers[i]) {
+                correctCount++;
+            }
         }
 
         // Update user profile
@@ -189,6 +236,22 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
 
         // Calculate gems earned (60 if score >= 70, 0 otherwise)
         uint256 gemsEarned = score >= 70 ? 60 : 0;
+
+        // Record quiz completion for badge tracking
+        bool allCorrect = correctCount == correctAnswers.length;
+        badgesContract.recordQuizCompletion(
+            user,
+            quizType,
+            timeTaken,
+            usedLifeline,
+            allCorrect,
+            correctCount
+        );
+
+        // Check for Elite badge (5k coins)
+        if (gemsContract.balanceOf(user) >= 5000) {
+            badgesContract.awardEliteBadge(user);
+        }
 
         emit QuizCompleted(user, score, gemsEarned, correctAnswers.length * 10); // Assuming 10 XP per correct answer
 
@@ -202,12 +265,14 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param contestId Contest identifier
      * @param gemsEarned Gems earned in the contest
      * @param xpEarned XP earned in the contest
+     * @param isWin Whether the user won the contest
      */
     function completeContest(
         address user,
         string memory contestId,
         uint256 gemsEarned,
-        uint256 xpEarned
+        uint256 xpEarned,
+        bool isWin
     )
         external
         onlyOwner
@@ -235,6 +300,16 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         profile.totalContestsParticipated++;
         profile.lastActiveDate = block.timestamp;
 
+        // Record contest completion for badge tracking
+        if (isWin) {
+            badgesContract.recordContestWin(user);
+        }
+
+        // Check for Elite badge (5k coins)
+        if (gemsContract.balanceOf(user) >= 5000) {
+            badgesContract.awardEliteBadge(user);
+        }
+
         emit ContestCompleted(user, contestId, gemsEarned, xpEarned);
 
         // Check for contest-related achievements
@@ -248,13 +323,17 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param isWin Whether the user won
      * @param gemsEarned Gems earned from the battle
      * @param customXP Custom XP amount (0 to use default)
+     * @param points Points scored in the battle
+     * @param isHighestScore Whether user had highest score in the battle
      */
     function completeBattle(
         address user,
         string memory battleType,
         bool isWin,
         uint256 gemsEarned,
-        uint256 customXP
+        uint256 customXP,
+        uint256 points,
+        bool isHighestScore
     )
         external
         onlyOwner
@@ -279,6 +358,20 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         UserProfile storage profile = _userProfiles[user];
         profile.totalBattlesParticipated++;
         profile.lastActiveDate = block.timestamp;
+
+        // Record battle completion for badge tracking
+        badgesContract.recordBattleCompletion(
+            user,
+            battleType,
+            isWin,
+            points,
+            isHighestScore
+        );
+
+        // Check for Elite badge (5k coins)
+        if (gemsContract.balanceOf(user) >= 5000) {
+            badgesContract.awardEliteBadge(user);
+        }
 
         uint256 xpChange = customXP > 0 ? customXP : (isWin ? 50 : 10); // Default XP values
 
@@ -353,12 +446,39 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Get comprehensive user data
+     * @dev Update referral count for Echo Spreader badge
+     * @param user Address of the user
+     * @param referralCount Total number of referrals
+     */
+    function updateReferralCount(address user, uint256 referralCount)
+        external
+        onlyOwner
+        validAddress(user)
+        contractsSet
+        whenNotPaused
+    {
+        require(gemsContract.isRegistered(user), "User not registered");
+
+        badgesContract.updateReferralCount(user, referralCount);
+
+        // Check for Elite badge (5k coins)
+        if (gemsContract.balanceOf(user) >= 5000) {
+            badgesContract.awardEliteBadge(user);
+        }
+    }
+
+    /**
+     * @dev Get comprehensive user data including badges
      * @param user Address of the user
      * @return profile User profile
      * @return gemsBalance Current gems balance
      * @return xpBalance Current XP balance
      * @return userRank Current leaderboard rank
+     * @return badges Array of badge status
+     * @return totalBadges Total number of badges earned
+     * @return consecutiveWins Current consecutive wins
+     * @return dailyStreak Current daily streak
+     * @return correctAnswers Total correct answers
      */
     function getUserData(address user)
         external
@@ -367,13 +487,22 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
             UserProfile memory profile,
             uint256 gemsBalance,
             uint256 xpBalance,
-            uint256 userRank
+            uint256 userRank,
+            bool[15] memory badges,
+            uint256 totalBadges,
+            uint256 consecutiveWins,
+            uint256 dailyStreak,
+            uint256 correctAnswers
         )
     {
         profile = _userProfiles[user];
         gemsBalance = address(gemsContract) != address(0) ? gemsContract.balanceOf(user) : 0;
         xpBalance = address(xpContract) != address(0) ? xpContract.getXP(user) : 0;
         userRank = address(xpContract) != address(0) ? xpContract.getUserRank(user) : 0;
+
+        if (address(badgesContract) != address(0)) {
+            (badges, totalBadges, consecutiveWins, dailyStreak, correctAnswers) = badgesContract.getUserBadgeStatus(user);
+        }
     }
 
     /**

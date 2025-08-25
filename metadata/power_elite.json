@@ -1,0 +1,34 @@
+{
+  "name": "Power Elite",
+  "description": "Achieved more than 10 badges",
+  "image": "https://learnway.com/images/badges/power_elite.png",
+  "external_url": "https://learnway.com/badges/power_elite",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Meta Achievement"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Master"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "Earn 10+ badges"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "12"
+    }
+  ],
+  "properties": {
+    "badge_type": "POWER_ELITE",
+    "unlock_condition": "Earn 10 or more different badges",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}
