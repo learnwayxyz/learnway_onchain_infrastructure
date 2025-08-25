@@ -1,0 +1,34 @@
+{
+  "name": "First Spark",
+  "description": "First public appearance - Play quizZone first time",
+  "image": "https://learnway.com/images/badges/first_spark.png",
+  "external_url": "https://learnway.com/badges/first_spark",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Achievement"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Category",
+      "value": "First Time"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "Complete first quiz"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "0"
+    }
+  ],
+  "properties": {
+    "badge_type": "FIRST_SPARK",
+    "unlock_condition": "First quiz completion",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Lightning Ace",
+  "description": "Highest point gainer in battle (1 vs 1). Winner must be declared by completing the battle.",
+  "image": "https://learnway.com/images/badges/lightning_ace.png",
+  "external_url": "https://learnway.com/badges/lightning_ace",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Performance"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Uncommon"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Excellence"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "Highest points in 1v1"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "4"
+    }
+  ],
+  "properties": {
+    "badge_type": "LIGHTNING_ACE",
+    "unlock_condition": "Be the highest point scorer in a 1v1 battle",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}

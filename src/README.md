@@ -163,9 +163,10 @@ Before deployment, ensure comprehensive testing of:
 6. Edge cases (zero balances, maximum values, etc.)
 
 ## Contract Addresses
-1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0x588ed1beeefffcbad9c7b43d0853bbe4328a5485?tab=contract
+1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0xa4766220e5f7D5BD710eC373F298B1d20Afe7D53?tab=contract
 2. XP Contract: https://sepolia-blockscout.lisk.com/address/0x1891ee3b89836ff24a7f7588bb18f683322947d?tab=contract
-3. LearnWay Manager: https://sepolia-blockscout.lisk.com/address/0xf313ac1363ee491992fabdc38c8d78b5763f2ed2?tab=contract
+3. LearnWay Manager Contract: https://sepolia-blockscout.lisk.com/address/0x18Cf4eA8F7fc9590013766BeF00f73Da23815dBA?tab=contract
+4. Badges NFT Contract: https://sepolia-blockscout.lisk.com/address/0xa63758553DeaB7A7416ed82E05C96546bf95f2C8?tab=contract
 
 ## How To Setup
 Install Forge CLI:
@@ -190,8 +191,7 @@ forge create src/LearnWayManager.sol:LearnWayManager --rpc-url https://rpc.sepol
 
 ## How To Verify
 ```bash
-forge verify-contract \                                                                                                                                                                       ─╯
-  --rpc-url https://rpc.sepolia-api.lisk.com \
+forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
   --verifier blockscout \
   --verifier-url 'https://sepolia-blockscout.lisk.com/api/' \
   <Contract_Address> \

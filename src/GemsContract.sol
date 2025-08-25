@@ -107,7 +107,6 @@ contract GemsContract is Ownable, ReentrancyGuard, Pausable {
         external
         onlyOwner
         validAddress(user)
-        onlyRegistered
         whenNotPaused
     {
         require(score <= 100, "Invalid score");
@@ -132,7 +131,6 @@ contract GemsContract is Ownable, ReentrancyGuard, Pausable {
         external
         onlyOwner
         validAddress(user)
-        onlyRegistered
         whenNotPaused
     {
         require(amount > 0, "Amount must be greater than 0");
@@ -153,7 +151,6 @@ contract GemsContract is Ownable, ReentrancyGuard, Pausable {
         external
         onlyOwner
         validAddress(user)
-        onlyRegistered
         whenNotPaused
     {
         require(position >= 1 && position <= 3, "Invalid leaderboard position");
@@ -176,7 +173,6 @@ contract GemsContract is Ownable, ReentrancyGuard, Pausable {
         external
         onlyOwner
         validAddress(user)
-        onlyRegistered
         whenNotPaused
     {
         require(_balances[user] >= amount, "Insufficient gem balance");

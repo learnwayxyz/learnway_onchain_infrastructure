@@ -1,0 +1,34 @@
+{
+  "name": "Speed Scholar - Average",
+  "description": "Time to solve one fun & learn quiz question (8 seconds). Need minimum 5 questions to unlock",
+  "image": "https://learnway.com/images/badges/speed_scholar.png",
+  "external_url": "https://learnway.com/badges/speed_scholar",
+  "attributes": [
+    {
+      "trait_type": "Badge Type",
+      "value": "Speed"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Rare"
+    },
+    {
+      "trait_type": "Category",
+      "value": "Performance"
+    },
+    {
+      "trait_type": "Requirement",
+      "value": "≤8s avg on fun & learn (min 5)"
+    },
+    {
+      "trait_type": "Badge ID",
+      "value": "7"
+    }
+  ],
+  "properties": {
+    "badge_type": "SPEED_SCHOLAR",
+    "unlock_condition": "Average 8 seconds or less on fun & learn quizzes (minimum 5 questions)",
+    "is_active": true,
+    "collection": "LearnWay Badges"
+  }
+}
