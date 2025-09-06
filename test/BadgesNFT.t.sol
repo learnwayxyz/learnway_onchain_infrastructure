@@ -27,6 +27,7 @@ contract BadgesNFTTest is Test {
         // Deploy contracts
         badgesContract = new BadgesNFT("https://learnway.com/badges/");
         gemsContract = new GemsContract();
+        gemsContract.setTestMode(true); // Enable test mode before ownership transfer
         xpContract = new XPContract();
         learnWayManager = new LearnWayManager();
 

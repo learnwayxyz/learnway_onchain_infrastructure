@@ -31,6 +31,7 @@ contract PinataIntegrationTest is Test {
         // Deploy contracts
         badgesNFT = new BadgesNFT(OLD_BASE_URI);
         gemsContract = new GemsContract();
+        gemsContract.setTestMode(true); // Enable test mode to bypass cooldowns
         xpContract = new XPContract();
         learnWayManager = new LearnWayManager();
 

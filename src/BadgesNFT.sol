@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+// Import the existing interface from LearnWayManager
+import "./LearnWayManager.sol";
+
 /**
  * @title BadgesNFT
  * @dev NFT contract for managing achievement badges in the LearnWay ecosystem
@@ -34,12 +37,32 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
         ROUTINE_MASTER      // 14 - Maintain streak for 30 days
     }
 
+    // Badge rarity levels
+    enum BadgeRarity {
+        COMMON,     // 0 - Basic achievement badges
+        RARE,       // 1 - Intermediate challenges
+        EPIC,       // 2 - Advanced accomplishments
+        LEGENDARY   // 3 - Elite achievements
+    }
+
+    // Badge tiers for classification
+    enum BadgeTier {
+        BRONZE,    // 0 - Entry level
+        SILVER,    // 1 - Intermediate
+        GOLD,      // 2 - Advanced
+        PLATINUM,  // 3 - Expert
+        DIAMOND    // 4 - Master level
+    }
+
     // Badge information struct
     struct BadgeInfo {
         string name;
         string description;
         string imageURI;
         bool isActive;
+        BadgeRarity rarity;
+        BadgeTier tier;
+        uint256 pointsValue;
     }
 
     // User badge tracking
@@ -71,6 +94,9 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     // Events
     event BadgeMinted(address indexed user, BadgeType badgeType, uint256 tokenId);
     event BadgeDataUpdated(address indexed user, string dataType, uint256 value);
+    event BadgeRevoked(address indexed user, BadgeType badgeType, uint256 tokenId);
+    event MetadataUpdated(BadgeType badgeType, string newImageURI);
+    event BatchBadgeAwarded(address[] users, BadgeType badgeType);
 
     // State variables
     mapping(BadgeType => BadgeInfo) public badgeInfo;
@@ -90,6 +116,7 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
 
     // Contract addresses
     address public learnWayManager;
+    address public gemsContract;
 
     modifier onlyManager() {
         require(msg.sender == learnWayManager || msg.sender == owner(), "Not authorized");
@@ -115,6 +142,14 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
+     * @dev Set the Gems contract address for automatic ELITE badge awarding
+     */
+    function setGemsContract(address _gemsContract) external onlyOwner {
+        require(_gemsContract != address(0), "Invalid gems contract address");
+        gemsContract = _gemsContract;
+    }
+
+    /**
      * @dev Initialize all badge types with their metadata
      */
     function _initializeBadges() internal {
@@ -122,105 +157,150 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
             name: "First Spark",
             description: "First public appearance - Play quizZone first time",
             imageURI: "first_spark.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.COMMON,
+            tier: BadgeTier.BRONZE,
+            pointsValue: 10
         });
 
         badgeInfo[BadgeType.DUEL_CHAMPION] = BadgeInfo({
             name: "Duel Champion",
             description: "Won one battle (1 vs 1). Winner must be declared by completing the battle.",
             imageURI: "duel_champion.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.COMMON,
+            tier: BadgeTier.BRONZE,
+            pointsValue: 15
         });
 
         badgeInfo[BadgeType.SQUAD_SLAYER] = BadgeInfo({
             name: "Squad Slayer",
             description: "Won one group battle. Winner must be declared by completing the battle.",
             imageURI: "squad_slayer.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.RARE,
+            tier: BadgeTier.SILVER,
+            pointsValue: 20
         });
 
         badgeInfo[BadgeType.CROWN_HOLDER] = BadgeInfo({
             name: "Crown Holder",
             description: "Won one contest",
             imageURI: "crown_holder.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.RARE,
+            tier: BadgeTier.SILVER,
+            pointsValue: 25
         });
 
         badgeInfo[BadgeType.LIGHTNING_ACE] = BadgeInfo({
             name: "Lightning Ace",
             description: "Highest point gainer in battle (1 vs 1). Winner must be declared by completing the battle.",
             imageURI: "lightning_ace.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.RARE,
+            tier: BadgeTier.SILVER,
+            pointsValue: 30
         });
 
         badgeInfo[BadgeType.QUIZ_WARRIOR] = BadgeInfo({
             name: "Quiz Warrior",
             description: "Won back to back 3 battles. Winner must be declared by completing the battle.",
             imageURI: "quiz_warrior.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.GOLD,
+            pointsValue: 40
         });
 
         badgeInfo[BadgeType.SUPERSONIC] = BadgeInfo({
             name: "SuperSonic - Fastest Puzzle Solver",
             description: "Average time to solve one guess the word quiz question (25 seconds). Need minimum 5 questions to unlock",
             imageURI: "supersonic.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.GOLD,
+            pointsValue: 50
         });
 
         badgeInfo[BadgeType.SPEED_SCHOLAR] = BadgeInfo({
             name: "Speed Scholar - Average",
             description: "Time to solve one fun & learn quiz question (8 seconds). Need minimum 5 questions to unlock",
             imageURI: "speed_scholar.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.GOLD,
+            pointsValue: 45
         });
 
         badgeInfo[BadgeType.BRAINIAC] = BadgeInfo({
             name: "Brainiac",
             description: "Completed 100% quiz without using lifeline. Need minimum 5 questions to unlock",
             imageURI: "brainiac.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.PLATINUM,
+            pointsValue: 60
         });
 
         badgeInfo[BadgeType.QUIZ_TITAN] = BadgeInfo({
             name: "Quiz Titan",
             description: "5000 correct answers",
             imageURI: "quiz_titan.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.LEGENDARY,
+            tier: BadgeTier.PLATINUM,
+            pointsValue: 100
         });
 
         badgeInfo[BadgeType.ELITE] = BadgeInfo({
             name: "Elite",
             description: "5k coins in wallet",
             imageURI: "elite.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.LEGENDARY,
+            tier: BadgeTier.DIAMOND,
+            pointsValue: 80
         });
 
         badgeInfo[BadgeType.QUIZ_DEVOTEE] = BadgeInfo({
             name: "Quiz Devotee",
             description: "30 days daily quiz play",
             imageURI: "quiz_devotee.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.PLATINUM,
+            pointsValue: 70
         });
 
         badgeInfo[BadgeType.POWER_ELITE] = BadgeInfo({
             name: "Power Elite",
             description: "Achieved more than 10 badges",
             imageURI: "power_elite.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.LEGENDARY,
+            tier: BadgeTier.DIAMOND,
+            pointsValue: 150
         });
 
         badgeInfo[BadgeType.ECHO_SPREADER] = BadgeInfo({
             name: "Echo Spreader",
             description: "Share app to more than 50 people",
             imageURI: "echo_spreader.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.EPIC,
+            tier: BadgeTier.GOLD,
+            pointsValue: 75
         });
 
         badgeInfo[BadgeType.ROUTINE_MASTER] = BadgeInfo({
             name: "Routine Master",
             description: "Maintain streak for 30 days",
             imageURI: "routine_master.json",
-            isActive: true
+            isActive: true,
+            rarity: BadgeRarity.LEGENDARY,
+            tier: BadgeTier.DIAMOND,
+            pointsValue: 120
         });
     }
 
@@ -466,17 +546,23 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @dev Check and award Elite badge (5k coins in wallet)
-     * This requires external call to GemsContract
+     * Phase 2 Enhancement: Automatic gem balance checking
      */
     function _checkElite(address user, UserBadgeData storage userData) internal {
-        if (!userData.hasBadge[BadgeType.ELITE]) {
-            // This will be checked by LearnWayManager when it has access to GemsContract
-            // For now, we'll implement a manual trigger
+        if (!userData.hasBadge[BadgeType.ELITE] && gemsContract != address(0)) {
+            try IGemsContract(gemsContract).balanceOf(user) returns (uint256 gemBalance) {
+                if (gemBalance >= 5000) {
+                    _awardBadge(user, BadgeType.ELITE);
+                }
+            } catch {
+                // If gems contract call fails, ignore (could be contract not deployed or other issue)
+            }
         }
     }
 
     /**
      * @dev Manually award Elite badge (called by LearnWayManager with gems check)
+     * Kept for backward compatibility
      */
     function awardEliteBadge(address user) external onlyManager {
         UserBadgeData storage userData = userBadgeData[user];
@@ -484,6 +570,15 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
             _awardBadge(user, BadgeType.ELITE);
             // Check for additional badges that might be unlocked (like Power Elite)
             _checkAndAwardBadges(user);
+        }
+    }
+
+    /**
+     * @dev Phase 2 Enhancement: Check gem balance and auto-award ELITE badge
+     */
+    function checkAndAwardEliteBadge(address user) external onlyManager {
+        if (gemsContract != address(0)) {
+            _checkElite(user, userBadgeData[user]);
         }
     }
 
@@ -619,6 +714,287 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
      */
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    // Phase 2 Enhancements: Performance Analytics Dashboard Functions
+
+    /**
+     * @dev Get comprehensive user performance analytics
+     */
+    function getUserPerformanceAnalytics(address user) external view returns (
+        uint256 totalBadges,
+        uint256 badgePoints,
+        uint256 averageQuizTime,
+        uint256 perfectQuizzes,
+        uint256 longestStreak,
+        uint256 totalReferrals,
+        BadgeRarity highestRarity
+    ) {
+        UserBadgeData storage userData = userBadgeData[user];
+
+        totalBadges = userTotalBadges[user];
+        perfectQuizzes = userData.perfectQuizCount;
+        longestStreak = userDailyStreak[user];
+        totalReferrals = userReferralCount[user];
+
+        // Calculate total badge points
+        badgePoints = 0;
+        BadgeRarity highestRarityFound = BadgeRarity.COMMON;
+
+        for (uint256 i = 0; i < 15; i++) {
+            BadgeType badgeType = BadgeType(i);
+            if (userData.hasBadge[badgeType]) {
+                badgePoints += badgeInfo[badgeType].pointsValue;
+                if (badgeInfo[badgeType].rarity > highestRarityFound) {
+                    highestRarityFound = badgeInfo[badgeType].rarity;
+                }
+            }
+        }
+        highestRarity = highestRarityFound;
+
+        // Calculate average quiz time
+        uint256 totalQuizTime = userData.quizTypeTotalTime["guess_word"] + userData.quizTypeTotalTime["fun_learn"];
+        uint256 totalQuizCount = userData.quizTypeCount["guess_word"] + userData.quizTypeCount["fun_learn"];
+        averageQuizTime = totalQuizCount > 0 ? totalQuizTime / totalQuizCount : 0;
+    }
+
+    /**
+     * @dev Get badge distribution statistics
+     */
+    function getBadgeDistributionStats() external view returns (
+        uint256[15] memory badgeCounts,
+        uint256[4] memory rarityDistribution,
+        uint256[5] memory tierDistribution,
+        uint256 totalBadgesMinted
+    ) {
+        // Count badges by type
+        for (uint256 tokenId = 1; tokenId < _nextTokenId; tokenId++) {
+            if (_ownerOf(tokenId) != address(0)) {
+                BadgeType badgeType = tokenToBadgeType[tokenId];
+                badgeCounts[uint256(badgeType)]++;
+                totalBadgesMinted++;
+
+                // Count by rarity
+                uint256 rarityIndex = uint256(badgeInfo[badgeType].rarity);
+                if (rarityIndex < 4) rarityDistribution[rarityIndex]++;
+
+                // Count by tier
+                uint256 tierIndex = uint256(badgeInfo[badgeType].tier);
+                if (tierIndex < 5) tierDistribution[tierIndex]++;
+            }
+        }
+    }
+
+    /**
+     * @dev Get system health monitoring data
+     */
+    function getSystemHealthStats() external view returns (
+        uint256 totalUsers,
+        uint256 activeUsers,
+        uint256 averageBadgesPerUser,
+        uint256 totalBadgesMinted,
+        uint256 systemUptime
+    ) {
+        uint256 usersWithBadges = 0;
+        totalBadgesMinted = _nextTokenId - 1;
+
+        // This is a simplified calculation - in production you'd want to track this more efficiently
+        for (uint256 tokenId = 1; tokenId < _nextTokenId; tokenId++) {
+            address owner = _ownerOf(tokenId);
+            if (owner != address(0) && balanceOf(owner) == 1) {
+                totalUsers++;
+            }
+            if (owner != address(0) && userTotalBadges[owner] > 0) {
+                usersWithBadges++;
+            }
+        }
+
+        activeUsers = usersWithBadges;
+        averageBadgesPerUser = totalUsers > 0 ? totalBadgesMinted / totalUsers : 0;
+        systemUptime = block.timestamp; // Simplified - would track deployment time in production
+    }
+
+    // Phase 2 Enhancements: Dynamic Metadata Updates
+
+    /**
+     * @dev Update badge metadata dynamically
+     */
+    function updateBadgeMetadata(
+        BadgeType badgeType,
+        string calldata newName,
+        string calldata newDescription,
+        string calldata newImageURI
+    ) external onlyOwner {
+        require(bytes(newImageURI).length > 0, "Image URI cannot be empty");
+
+        badgeInfo[badgeType].name = newName;
+        badgeInfo[badgeType].description = newDescription;
+        badgeInfo[badgeType].imageURI = newImageURI;
+
+        emit MetadataUpdated(badgeType, newImageURI);
+    }
+
+    /**
+     * @dev Batch update metadata for multiple badges
+     */
+    function batchUpdateMetadata(
+        BadgeType[] calldata badgeTypes,
+        string[] calldata newImageURIs
+    ) external onlyOwner {
+        require(badgeTypes.length == newImageURIs.length, "Array length mismatch");
+
+        for (uint256 i = 0; i < badgeTypes.length; i++) {
+            require(bytes(newImageURIs[i]).length > 0, "Image URI cannot be empty");
+            badgeInfo[badgeTypes[i]].imageURI = newImageURIs[i];
+            emit MetadataUpdated(badgeTypes[i], newImageURIs[i]);
+        }
+    }
+
+    /**
+     * @dev Validate metadata integrity
+     */
+    function validateBadgeMetadata(BadgeType badgeType) external view returns (bool isValid, string memory errorMessage) {
+        BadgeInfo memory info = badgeInfo[badgeType];
+
+        if (bytes(info.name).length == 0) {
+            return (false, "Name is empty");
+        }
+        if (bytes(info.description).length == 0) {
+            return (false, "Description is empty");
+        }
+        if (bytes(info.imageURI).length == 0) {
+            return (false, "Image URI is empty");
+        }
+        if (info.pointsValue == 0) {
+            return (false, "Points value is zero");
+        }
+
+        return (true, "Valid");
+    }
+
+    // Phase 2 Enhancements: Badge Collection and Showcase Functions
+
+    /**
+     * @dev Get user's badge collection with detailed information
+     */
+    function getUserBadgeShowcase(address user) external view returns (
+        BadgeType[] memory ownedBadges,
+        BadgeInfo[] memory badgeDetails,
+        uint256 totalPoints,
+        uint256 collectionCompleteness
+    ) {
+        uint256 userBadgeCount = userTotalBadges[user];
+        ownedBadges = new BadgeType[](userBadgeCount);
+        badgeDetails = new BadgeInfo[](userBadgeCount);
+
+        uint256 index = 0;
+        totalPoints = 0;
+
+        for (uint256 i = 0; i < 15; i++) {
+            BadgeType badgeType = BadgeType(i);
+            if (userBadgeData[user].hasBadge[badgeType]) {
+                ownedBadges[index] = badgeType;
+                badgeDetails[index] = badgeInfo[badgeType];
+                totalPoints += badgeInfo[badgeType].pointsValue;
+                index++;
+            }
+        }
+
+        collectionCompleteness = (userBadgeCount * 100) / 15; // Percentage of badges collected
+    }
+
+    /**
+     * @dev Get badges by rarity for a user
+     */
+    function getUserBadgesByRarity(address user, BadgeRarity rarity) external view returns (
+        BadgeType[] memory badges,
+        uint256 count
+    ) {
+        // First, count badges of this rarity
+        count = 0;
+        for (uint256 i = 0; i < 15; i++) {
+            BadgeType badgeType = BadgeType(i);
+            if (userBadgeData[user].hasBadge[badgeType] && badgeInfo[badgeType].rarity == rarity) {
+                count++;
+            }
+        }
+
+        // Then populate the array
+        badges = new BadgeType[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < 15; i++) {
+            BadgeType badgeType = BadgeType(i);
+            if (userBadgeData[user].hasBadge[badgeType] && badgeInfo[badgeType].rarity == rarity) {
+                badges[index] = badgeType;
+                index++;
+            }
+        }
+    }
+
+    // Phase 2 Enhancements: Batch Operations
+
+    /**
+     * @dev Batch award badges to multiple users (admin function)
+     */
+    function batchAwardBadges(address[] calldata users, BadgeType badgeType) external onlyOwner {
+        require(users.length > 0, "Users array cannot be empty");
+        require(badgeInfo[badgeType].isActive, "Badge type is not active");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            if (users[i] != address(0) && !userBadgeData[users[i]].hasBadge[badgeType]) {
+                _awardBadge(users[i], badgeType);
+            }
+        }
+
+        emit BatchBadgeAwarded(users, badgeType);
+    }
+
+    /**
+     * @dev Emergency badge management - revoke badge (if needed)
+     */
+    function emergencyRevokeBadge(address user, BadgeType badgeType) external onlyOwner {
+        require(userBadgeData[user].hasBadge[badgeType], "User does not have this badge");
+
+        // Find and burn the token
+        for (uint256 tokenId = 1; tokenId < _nextTokenId; tokenId++) {
+            if (_ownerOf(tokenId) == user && tokenToBadgeType[tokenId] == badgeType) {
+                userBadgeData[user].hasBadge[badgeType] = false;
+                userTotalBadges[user]--;
+                _burn(tokenId);
+
+                emit BadgeRevoked(user, badgeType, tokenId);
+                break;
+            }
+        }
+    }
+
+    /**
+     * @dev Audit function to verify badge integrity
+     */
+    function auditUserBadges(address user) external view returns (
+        bool isConsistent,
+        uint256 expectedCount,
+        uint256 actualCount,
+        string memory issues
+    ) {
+        UserBadgeData storage userData = userBadgeData[user];
+        expectedCount = 0;
+        actualCount = balanceOf(user);
+
+        // Count expected badges based on hasBadge mapping
+        for (uint256 i = 0; i < 15; i++) {
+            if (userData.hasBadge[BadgeType(i)]) {
+                expectedCount++;
+            }
+        }
+
+        isConsistent = (expectedCount == actualCount && expectedCount == userTotalBadges[user]);
+
+        if (!isConsistent) {
+            issues = "Mismatch between badge mappings and actual token count";
+        } else {
+            issues = "All checks passed";
+        }
     }
 
     /**

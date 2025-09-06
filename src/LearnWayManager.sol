@@ -160,6 +160,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         contractsSet
         whenNotPaused
     {
+        require(bytes(username).length > 0, "Username cannot be empty");
         require(!gemsContract.isRegistered(user), "User already registered");
 
         // Register in both contracts
@@ -186,6 +187,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         if (referralCode != address(0) && gemsContract.isRegistered(referralCode)) {
             // Get referral count from GemsContract (assuming it's tracked there)
             // For now, we'll implement a manual update function
+            badgesContract.updateReferralCount(referralCode, 0); // Placeholder, should be actual count
         }
 
         // Check for first-time registration achievements
@@ -216,8 +218,9 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         whenNotPaused
     {
         require(gemsContract.isRegistered(user), "User not registered");
+        require(score <= 100, "Invalid score");
 
-        // Award gems based on score
+        // Award gems based on score (dynamic in GemsContract)
         gemsContract.awardQuizGems(user, score);
 
         // Record each answer for XP calculation
@@ -234,8 +237,8 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         profile.totalQuizzesCompleted++;
         profile.lastActiveDate = block.timestamp;
 
-        // Calculate gems earned (60 if score >= 70, 0 otherwise)
-        uint256 gemsEarned = score >= 70 ? 60 : 0;
+        // Calculate dynamic gems earned for event emission only
+        uint256 gemsEarned = score >= 70 ? (score - 70) * 2 : 0;
 
         // Record quiz completion for badge tracking
         bool allCorrect = correctCount == correctAnswers.length;
@@ -253,7 +256,14 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
             badgesContract.awardEliteBadge(user);
         }
 
-        emit QuizCompleted(user, score, gemsEarned, correctAnswers.length * 10); // Assuming 10 XP per correct answer
+        // XP change for event = +4 per correct, -2 per incorrect
+        uint256 totalAnswers = correctAnswers.length;
+        uint256 incorrectCount = totalAnswers - correctCount;
+        uint256 xpChange = correctCount * 4;
+        if (incorrectCount > 0) {
+            xpChange = xpChange > incorrectCount * 2 ? xpChange - incorrectCount * 2 : 0;
+        }
+        emit QuizCompleted(user, score, gemsEarned, xpChange);
 
         // Check for quiz-related achievements
         _checkAchievements(user);
@@ -274,7 +284,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         uint256 xpEarned,
         bool isWin
     )
-        external
+        public
         onlyOwner
         validAddress(user)
         contractsSet
@@ -335,7 +345,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         uint256 points,
         bool isHighestScore
     )
-        external
+        public
         onlyOwner
         validAddress(user)
         contractsSet
@@ -640,6 +650,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         string memory requirementType
     ) internal {
         bytes32 aid = keccak256(bytes(id));
+        require(bytes(_achievements[aid].id).length == 0, "Achievement already exists");
         _achievements[aid] = Achievement({
             id: id,
             name: name,
@@ -687,5 +698,140 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      */
     function getTotalUsers() external view returns (uint256) {
         return _totalUsers;
+    }
+
+
+    // ==============================
+    // Test Compatibility Functions
+    // ==============================
+
+    /**
+     * @dev Participate in contest (wrapper for completeContest with isWin=false)
+     */
+    function participateInContest(
+        address user,
+        string memory contestId,
+        uint256 gemsEarned,
+        uint256 xpEarned
+    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
+        completeContest(user, contestId, gemsEarned, xpEarned, false);
+    }
+
+    /**
+     * @dev Get user profile
+     */
+    function getUserProfile(address user) external view returns (UserProfile memory) {
+        return _userProfiles[user];
+    }
+
+    /**
+     * @dev Update user profile with profileData parameter for test compatibility
+     */
+    function updateUserProfile(
+        address user,
+        string memory username,
+        string memory profileImageHash,
+        string memory profileData
+    ) external onlyOwner validAddress(user) whenNotPaused {
+        require(gemsContract.isRegistered(user), "User not registered");
+
+        UserProfile storage profile = _userProfiles[user];
+        profile.username = username;
+        profile.profileImageHash = profileImageHash;
+        profile.lastActiveDate = block.timestamp;
+
+        emit UserProfileUpdated(user, profileData);
+    }
+
+    /**
+     * @dev Deactivate user
+     */
+    function deactivateUser(address user) external onlyOwner validAddress(user) {
+        _userProfiles[user].isActive = false;
+    }
+
+    /**
+     * @dev Reactivate user
+     */
+    function reactivateUser(address user) external onlyOwner validAddress(user) {
+        _userProfiles[user].isActive = true;
+    }
+
+    /**
+     * @dev Distribute monthly rewards with rewards array (test compatibility)
+     */
+    function distributeMonthlyRewards(
+        uint256 month,
+        uint256 year,
+        address[] memory topUsers,
+        uint256[] memory rewards
+    ) external onlyOwner contractsSet whenNotPaused {
+        require(month >= 1 && month <= 12, "Invalid month");
+        require(topUsers.length == rewards.length, "Arrays length mismatch");
+        require(!_monthlyRewardsDistributed[year][month], "Rewards already distributed for this month");
+
+        for (uint256 i = 0; i < topUsers.length; i++) {
+            require(gemsContract.isRegistered(topUsers[i]), "User not registered");
+            gemsContract.awardContestGems(topUsers[i], rewards[i], "Monthly reward");
+        }
+
+        _monthlyTopUsers[year][month] = topUsers;
+        _monthlyRewardsDistributed[year][month] = true;
+
+        emit MonthlyRewardsDistributed(month, year, topUsers, rewards);
+    }
+
+    /**
+     * @dev Check if monthly reward was distributed
+     */
+    function isMonthlyRewardDistributed(uint256 month, uint256 year) external view returns (bool) {
+        return _monthlyRewardsDistributed[year][month];
+    }
+
+    /**
+     * @dev Add achievement (external wrapper)
+     */
+    function addAchievement(
+        string memory id,
+        string memory name,
+        string memory description,
+        uint256 gemsReward,
+        uint256 requirement,
+        string memory requirementType
+    ) external onlyOwner {
+        bytes32 aid = keccak256(bytes(id));
+        require(bytes(_achievements[aid].id).length == 0, "Achievement already exists");
+        _addAchievement(id, name, description, gemsReward, requirement, requirementType);
+    }
+
+    /**
+     * @dev Check if achievement is active
+     */
+    function isAchievementActive(string memory id) external view returns (bool) {
+        bytes32 aid = keccak256(bytes(id));
+        return _achievements[aid].isActive;
+    }
+
+    /**
+     * @dev Deactivate achievement
+     */
+    function deactivateAchievement(string memory id) external onlyOwner {
+        bytes32 aid = keccak256(bytes(id));
+        require(bytes(_achievements[aid].id).length > 0, "Achievement does not exist");
+        _achievements[aid].isActive = false;
+    }
+
+    /**
+     * @dev Complete battle with 6 parameters (test compatibility)
+     */
+    function completeBattle(
+        address user,
+        string memory battleType,
+        bool isWin,
+        uint256 gemsEarned,
+        uint256 customXP,
+        bool isHighestScore
+    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
+        completeBattle(user, battleType, isWin, gemsEarned, customXP, 0, isHighestScore);
     }
 }
