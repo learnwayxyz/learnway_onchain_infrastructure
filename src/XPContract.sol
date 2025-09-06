@@ -391,6 +391,8 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
     function _updateLeaderboard(address user) internal {
         uint256 userIndex = _leaderboardIndex[user];
         uint256 userXP = _userStats[user].totalXP;
+        uint256 startIndex = userIndex;
+        uint256 endIndex = userIndex;
 
         // Move user up in leaderboard if they have more XP than users above them
         while (userIndex > 0 && _userStats[_leaderboard[userIndex - 1]].totalXP < userXP) {
@@ -404,6 +406,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
             _leaderboardIndex[user] = userIndex - 1;
 
             userIndex--;
+            startIndex = userIndex; // Track the range affected
         }
 
         // Move user down in leaderboard if they have less XP than users below them
@@ -418,10 +421,16 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
             _leaderboardIndex[user] = userIndex + 1;
 
             userIndex++;
+            endIndex = userIndex; // Track the range affected
         }
 
-        // Update user's rank (1-based)
-        _userStats[user].currentRank = userIndex + 1;
+        // Update ranks for all affected users in the range that changed
+        uint256 rangeStart = startIndex < endIndex ? startIndex : endIndex;
+        uint256 rangeEnd = startIndex > endIndex ? startIndex : endIndex;
+
+        for (uint256 i = rangeStart; i <= rangeEnd && i < _leaderboard.length; i++) {
+            _userStats[_leaderboard[i]].currentRank = i + 1;
+        }
 
         emit LeaderboardUpdated(user, userXP, _userStats[user].currentRank);
     }

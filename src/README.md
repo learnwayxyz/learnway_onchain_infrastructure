@@ -2,6 +2,9 @@
 
 This directory contains the smart contracts for the LearnWay learn-to-earn module, designed to make certain information immutable on the blockchain.
 
+## Additional Resources - Gitbook source url
+https://learnway.gitbook.io/learnway/
+
 ## Overview
 
 The LearnWay ecosystem consists of three main smart contracts:
@@ -163,10 +166,10 @@ Before deployment, ensure comprehensive testing of:
 6. Edge cases (zero balances, maximum values, etc.)
 
 ## Contract Addresses
-1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0xa4766220e5f7D5BD710eC373F298B1d20Afe7D53?tab=contract
-2. XP Contract: https://sepolia-blockscout.lisk.com/address/0x1891ee3b89836ff24a7f7588bb18f683322947d?tab=contract
-3. LearnWay Manager Contract: https://sepolia-blockscout.lisk.com/address/0x18Cf4eA8F7fc9590013766BeF00f73Da23815dBA?tab=contract
-4. Badges NFT Contract: https://sepolia-blockscout.lisk.com/address/0xa63758553DeaB7A7416ed82E05C96546bf95f2C8?tab=contract
+1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0xCF5CD0144087419ec376Fc45F2984dc5D6C955AA?tab=contract
+2. XP Contract: https://sepolia-blockscout.lisk.com/address/0x79b90f2237304DfaA519Bfab5893eD541Aa49fF1?tab=contract
+3. LearnWay Manager Contract: https://sepolia-blockscout.lisk.com/address/0xA72ea6360E3402372ED7337A49ff7cCD072A35Ac?tab=contract
+4. Badges NFT Contract: https://sepolia-blockscout.lisk.com/address/0x8715165e903D35333E40d1E2e714d2F88242C576?tab=contract
 
 ## How To Setup
 Install Forge CLI:
