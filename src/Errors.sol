@@ -6,3 +6,6 @@ error UnauthorizedAdmin();
 error UnauthorizedManager();
 error UnauthorizedModerator();
 error UnauthorizedEmergency();
+error UnauthorizedPauser();
+error UnauthorizedAdminOrManager();
+error UnauthorizedMinter();

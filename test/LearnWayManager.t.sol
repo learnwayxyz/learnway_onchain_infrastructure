@@ -109,7 +109,7 @@ contract LearnWayManagerTest is Test {
         manager.setContracts(address(gemsContract), address(xpContract), address(badgesContract));
 
         // Transfer ownership to LearnWayManager for both contracts
-        gemsContract.transferOwnership(address(manager));
+        // gemsContract.transferOwnership(address(manager));
         xpContract.transferOwnership(address(manager));
     }
 

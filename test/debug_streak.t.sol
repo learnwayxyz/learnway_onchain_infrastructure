@@ -32,7 +32,7 @@ contract DebugStreakTest is Test {
         badgesContract.setLearnWayManager(address(learnWayManager));
 
         // Transfer ownership of subsidiary contracts to LearnWayManager for proper access control
-        gemsContract.transferOwnership(address(learnWayManager));
+        // gemsContract.transferOwnership(address(learnWayManager));
         xpContract.transferOwnership(address(learnWayManager));
 
         // Register test user

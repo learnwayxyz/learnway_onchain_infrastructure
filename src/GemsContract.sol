@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./interface/ILearnWayAdmin.sol";
+import "./Errors.sol";
 
 /**
  * @title GemsContract
@@ -14,8 +14,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
  * Gems serve as the in-app currency and are earned through various activities
  * Enhanced with role-based access control and anti-spam mechanisms
  */
-contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
-
+contract GemsContract is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     // Events
     event GemsAwarded(address indexed user, uint256 amount, string reason);
     event GemsSpent(address indexed user, uint256 amount, string reason);
@@ -30,13 +29,9 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
     event WeeklyRewardsDistributed(uint256 indexed week, uint256 indexed year, address[] topUsers, uint256[] rewards);
     event SecurityAlert(address indexed user, string alertType, uint256 timestamp);
     event RateLimitExceeded(address indexed user, string action, uint256 attemptCount);
-    event RoleUpdated(address indexed user, bytes32 indexed role, bool granted);
 
-    // Role-based access control
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
-    bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
+    // LearnWayAdmin contract instance
+    ILearnWayAdmin public learnWayAdmin;
 
     // Constants for gem rewards
     uint256 public constant NEW_USER_SIGNUP_BONUS = 500;
@@ -102,74 +97,28 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
         _;
     }
 
-    modifier rateLimited() {
-        if (!testMode) {
-            uint256 currentHour = block.timestamp / 1 hours;
-            _hourlyTransactionCount[msg.sender][currentHour]++;
-
-            if (_hourlyTransactionCount[msg.sender][currentHour] > MAX_TRANSACTIONS_PER_HOUR) {
-                emit RateLimitExceeded(msg.sender, "hourly_limit", _hourlyTransactionCount[msg.sender][currentHour]);
-                revert("Rate limit exceeded");
-            }
-
-            require(
-                block.timestamp >= _lastTransactionTime[msg.sender] + COOLDOWN_PERIOD,
-                "Cooldown period not elapsed"
-            );
-
-            _lastTransactionTime[msg.sender] = block.timestamp;
-        }
-        _;
-    }
-
-    modifier onlyAdminOrOwner() {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) || owner() == msg.sender,
-            "Requires admin role or ownership"
-        );
-        _;
-    }
-
-    modifier onlyManagerOrHigher() {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) ||
-            hasRole(MANAGER_ROLE, msg.sender) ||
-            owner() == msg.sender,
-            "Requires manager role or higher"
-        );
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize() public initializer {
-        __Ownable_init(msg.sender);
-        __AccessControl_init();
+    function initialize(address _learnWayAdmin) public initializer {
         __ReentrancyGuard_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
 
+        learnWayAdmin = ILearnWayAdmin(_learnWayAdmin);
+
         // Set monthly leaderboard rewards
         monthlyLeaderboardRewards[1] = 1000; // 1st place
-        monthlyLeaderboardRewards[2] = 500;  // 2nd place
-        monthlyLeaderboardRewards[3] = 250;  // 3rd place
+        monthlyLeaderboardRewards[2] = 500; // 2nd place
+        monthlyLeaderboardRewards[3] = 250; // 3rd place
 
         // Set weekly leaderboard rewards
         weeklyLeaderboardRewards[1] = 200; // 1st place
         weeklyLeaderboardRewards[2] = 100; // 2nd place
-        weeklyLeaderboardRewards[3] = 50;  // 3rd place
-
-        // Setup role-based access control
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
-        _grantRole(MANAGER_ROLE, msg.sender);
-        _grantRole(EMERGENCY_ROLE, msg.sender);
+        weeklyLeaderboardRewards[3] = 50; // 3rd place
     }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /**
      * @dev Register a new user and award signup bonus
@@ -178,11 +127,12 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      */
     function registerUser(address user, address referralCode)
         external
-        onlyManagerOrHigher
+        nonReentrant
         validAddress(user)
         notBlacklisted(user)
         whenNotPaused
     {
+        learnWayAdmin.checkAdminOrManager();
         require(!_isRegistered[user], "User already registered");
 
         _isRegistered[user] = true;
@@ -222,12 +172,12 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      */
     function awardQuizGems(address user, uint256 score)
         external
-        onlyManagerOrHigher
+        nonReentrant
         validAddress(user)
         notBlacklisted(user)
         whenNotPaused
-        rateLimited
     {
+        learnWayAdmin.checkAdminOrManager();
         require(score <= 100, "Invalid score");
         require(_isRegistered[user], "User not registered");
 
@@ -250,10 +200,10 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      */
     function awardContestGems(address user, uint256 amount, string memory contestType)
         external
-        onlyOwner
         validAddress(user)
         whenNotPaused
     {
+        learnWayAdmin.checkAdmin();
         require(amount > 0, "Amount must be greater than 0");
 
         _balances[user] += amount;
@@ -268,12 +218,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param user Address of the user
      * @param position Position on leaderboard (1, 2, or 3)
      */
-    function awardMonthlyLeaderboardReward(address user, uint256 position)
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
+    function awardMonthlyLeaderboardReward(address user, uint256 position) external validAddress(user) whenNotPaused {
+        learnWayAdmin.checkAdmin();
         require(position >= 1 && position <= 3, "Invalid leaderboard position");
 
         uint256 reward = monthlyLeaderboardRewards[position];
@@ -290,12 +236,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param amount Amount of gems to spend
      * @param reason Reason for spending
      */
-    function spendGems(address user, uint256 amount, string memory reason)
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
+    function spendGems(address user, uint256 amount, string memory reason) external validAddress(user) whenNotPaused {
+        learnWayAdmin.checkAdmin();
         require(_balances[user] >= amount, "Insufficient gem balance");
 
         _balances[user] -= amount;
@@ -363,12 +305,10 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param reward Gem reward amount for the lesson type
      * @param minScore Minimum score required to earn rewards
      */
-    function setLessonReward(string memory lessonType, uint256 reward, uint256 minScore)
-        external
-        onlyOwner
-    {
+    function setLessonReward(string memory lessonType, uint256 reward, uint256 minScore) external {
+        learnWayAdmin.checkAdmin();
         require(bytes(lessonType).length > 0, "Lesson type cannot be empty");
-        require(minScore <= 100, "Invalid minimum score");
+        require(minScore <= 100 && minScore > 0, "Invalid minimum score");
 
         lessonRewards[lessonType] = reward;
         lessonMinScores[lessonType] = minScore;
@@ -382,10 +322,10 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      */
     function awardLessonGems(address user, string memory lessonType, uint256 score)
         external
-        onlyOwner
         validAddress(user)
         whenNotPaused
     {
+        learnWayAdmin.checkAdmin();
         require(score <= 100, "Invalid score");
         require(lessonRewards[lessonType] > 0, "Lesson type not configured");
 
@@ -404,15 +344,11 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param rewards Array of reward amounts
      * @param minScores Array of minimum scores
      */
-    function batchSetLessonRewards(
-        string[] memory lessonTypes,
-        uint256[] memory rewards,
-        uint256[] memory minScores
-    ) external onlyOwner {
-        require(
-            lessonTypes.length == rewards.length && rewards.length == minScores.length,
-            "Arrays length mismatch"
-        );
+    function batchSetLessonRewards(string[] memory lessonTypes, uint256[] memory rewards, uint256[] memory minScores)
+        external
+    {
+        learnWayAdmin.checkAdmin();
+        require(lessonTypes.length == rewards.length && rewards.length == minScores.length, "Arrays length mismatch");
 
         for (uint256 i = 0; i < lessonTypes.length; i++) {
             require(bytes(lessonTypes[i]).length > 0, "Empty lesson type");
@@ -429,10 +365,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param position Leaderboard position (1, 2, or 3)
      * @param reward New reward amount
      */
-    function updateMonthlyLeaderboardReward(uint256 position, uint256 reward)
-        external
-        onlyOwner
-    {
+    function updateMonthlyLeaderboardReward(uint256 position, uint256 reward) external {
+        learnWayAdmin.checkAdmin();
         require(position >= 1 && position <= 3, "Invalid position");
         monthlyLeaderboardRewards[position] = reward;
     }
@@ -442,10 +376,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param month Month (1-12)
      * @param year Year (e.g., 2024)
      */
-    function resetMonthlyLeaderboard(uint256 month, uint256 year)
-        external
-        onlyOwner
-    {
+    function resetMonthlyLeaderboard(uint256 month, uint256 year) external {
+        learnWayAdmin.checkAdmin();
         require(month >= 1 && month <= 12, "Invalid month");
         require(year >= 2024, "Invalid year");
 
@@ -465,12 +397,11 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param topUsers Array of top user addresses (ordered by rank)
      * @param rewards Array of reward amounts corresponding to each user
      */
-    function distributeMonthlyRewards(
-        uint256 month,
-        uint256 year,
-        address[] memory topUsers,
-        uint256[] memory rewards
-    ) external onlyOwner nonReentrant {
+    function distributeMonthlyRewards(uint256 month, uint256 year, address[] memory topUsers, uint256[] memory rewards)
+        external
+        nonReentrant
+    {
+        learnWayAdmin.checkAdmin();
         require(month >= 1 && month <= 12, "Invalid month");
         require(year >= 2024, "Invalid year");
         require(topUsers.length == rewards.length, "Arrays length mismatch");
@@ -502,11 +433,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param year Year (e.g., 2024)
      * @return Array of addresses that received rewards
      */
-    function getMonthlyRewardHistory(uint256 month, uint256 year)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getMonthlyRewardHistory(uint256 month, uint256 year) external view returns (address[] memory) {
         bytes32 monthYearHash = keccak256(abi.encodePacked(month, year));
         return monthlyRewardHistory[monthYearHash];
     }
@@ -517,11 +444,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param year Year (e.g., 2024)
      * @return Reset status
      */
-    function isMonthlyLeaderboardReset(uint256 month, uint256 year)
-        external
-        view
-        returns (bool)
-    {
+    function isMonthlyLeaderboardReset(uint256 month, uint256 year) external view returns (bool) {
         bytes32 monthYearHash = keccak256(abi.encodePacked(month, year));
         return monthlyLeaderboardResets[monthYearHash];
     }
@@ -531,10 +454,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param week Week number (1-52)
      * @param year Year (e.g., 2024)
      */
-    function resetWeeklyLeaderboard(uint256 week, uint256 year)
-        external
-        onlyOwner
-    {
+    function resetWeeklyLeaderboard(uint256 week, uint256 year) external {
+        learnWayAdmin.checkAdmin();
         require(week >= 1 && week <= 52, "Invalid week");
         require(year >= 2024, "Invalid year");
 
@@ -554,12 +475,11 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param topUsers Array of top user addresses (ordered by rank)
      * @param rewards Array of reward amounts corresponding to each user
      */
-    function distributeWeeklyRewards(
-        uint256 week,
-        uint256 year,
-        address[] memory topUsers,
-        uint256[] memory rewards
-    ) external onlyOwner nonReentrant {
+    function distributeWeeklyRewards(uint256 week, uint256 year, address[] memory topUsers, uint256[] memory rewards)
+        external
+        nonReentrant
+    {
+        learnWayAdmin.checkAdmin();
         require(week >= 1 && week <= 52, "Invalid week");
         require(year >= 2024, "Invalid year");
         require(topUsers.length == rewards.length, "Arrays length mismatch");
@@ -590,10 +510,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param position Leaderboard position (1, 2, or 3)
      * @param reward New reward amount
      */
-    function updateWeeklyLeaderboardReward(uint256 position, uint256 reward)
-        external
-        onlyOwner
-    {
+    function updateWeeklyLeaderboardReward(uint256 position, uint256 reward) external {
+        learnWayAdmin.checkAdmin();
         require(position >= 1 && position <= 3, "Invalid position");
         weeklyLeaderboardRewards[position] = reward;
     }
@@ -604,11 +522,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param year Year (e.g., 2024)
      * @return Array of addresses that received rewards
      */
-    function getWeeklyRewardHistory(uint256 week, uint256 year)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getWeeklyRewardHistory(uint256 week, uint256 year) external view returns (address[] memory) {
         bytes32 weekYearHash = keccak256(abi.encodePacked(week, year));
         return weeklyRewardHistory[weekYearHash];
     }
@@ -619,11 +533,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param year Year (e.g., 2024)
      * @return Reset status
      */
-    function isWeeklyLeaderboardReset(uint256 week, uint256 year)
-        external
-        view
-        returns (bool)
-    {
+    function isWeeklyLeaderboardReset(uint256 week, uint256 year) external view returns (bool) {
         bytes32 weekYearHash = keccak256(abi.encodePacked(week, year));
         return weeklyLeaderboardResets[weekYearHash];
     }
@@ -633,12 +543,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param user Address of the user
      * @param position Position on leaderboard (1, 2, or 3)
      */
-    function awardWeeklyLeaderboardReward(address user, uint256 position)
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
+    function awardWeeklyLeaderboardReward(address user, uint256 position) external validAddress(user) whenNotPaused {
+        learnWayAdmin.checkAdmin();
         require(position >= 1 && position <= 3, "Invalid leaderboard position");
 
         uint256 reward = weeklyLeaderboardRewards[position];
@@ -652,14 +558,16 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
     /**
      * @dev Emergency function to pause the contract
      */
-    function pause() external onlyOwner {
+    function pause() external {
+        learnWayAdmin.checkAdmin();
         _pause();
     }
 
     /**
      * @dev Emergency function to unpause the contract
      */
-    function unpause() external onlyOwner {
+    function unpause() external {
+        learnWayAdmin.checkAdmin();
         _unpause();
     }
 
@@ -669,11 +577,11 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param amounts Array of gem amounts
      * @param reason Reason for awarding
      */
-    function batchAwardGems(
-        address[] memory users,
-        uint256[] memory amounts,
-        string memory reason
-    ) external onlyOwner whenNotPaused {
+    function batchAwardGems(address[] memory users, uint256[] memory amounts, string memory reason)
+        external
+        whenNotPaused
+    {
+        learnWayAdmin.checkAdmin();
         require(users.length == amounts.length, "Arrays length mismatch");
 
         for (uint256 i = 0; i < users.length; i++) {
@@ -694,11 +602,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @dev Add address to blacklist
      * @param user Address to blacklist
      */
-    function addToBlacklist(address user)
-        external
-        onlyAdminOrOwner
-        validAddress(user)
-    {
+    function addToBlacklist(address user) external validAddress(user) {
+        learnWayAdmin.checkAdmin();
         _isBlacklisted[user] = true;
         emit SecurityAlert(user, "BLACKLISTED", block.timestamp);
     }
@@ -707,25 +612,10 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @dev Remove address from blacklist
      * @param user Address to remove from blacklist
      */
-    function removeFromBlacklist(address user)
-        external
-        onlyAdminOrOwner
-        validAddress(user)
-    {
+    function removeFromBlacklist(address user) external validAddress(user) {
+        learnWayAdmin.checkAdmin();
         _isBlacklisted[user] = false;
         emit SecurityAlert(user, "BLACKLIST_REMOVED", block.timestamp);
-    }
-
-    /**
-     * @dev Enhanced emergency pause with role-based access
-     */
-    function emergencyPause() external {
-        require(
-            hasRole(EMERGENCY_ROLE, msg.sender) || owner() == msg.sender,
-            "Requires emergency role"
-        );
-        _pause();
-        emit SecurityAlert(msg.sender, "EMERGENCY_PAUSE", block.timestamp);
     }
 
     /**
@@ -733,11 +623,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param user Address to check
      * @param hour Hour to check (block.timestamp / 1 hours)
      */
-    function getHourlyTransactionCount(address user, uint256 hour)
-        external
-        view
-        returns (uint256)
-    {
+    function getHourlyTransactionCount(address user, uint256 hour) external view returns (uint256) {
         return _hourlyTransactionCount[user][hour];
     }
 
@@ -745,12 +631,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @dev Get user's suspicious activity count
      * @param user Address to check
      */
-    function getSuspiciousActivityCount(address user)
-        external
-        view
-        onlyManagerOrHigher
-        returns (uint256)
-    {
+    function getSuspiciousActivityCount(address user) external view returns (uint256) {
+        learnWayAdmin.checkAdminOrManager();
         return _suspiciousActivityCount[user];
     }
 
@@ -758,11 +640,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @dev Check if address is blacklisted
      * @param user Address to check
      */
-    function isBlacklisted(address user)
-        external
-        view
-        returns (bool)
-    {
+    function isBlacklisted(address user) external view returns (bool) {
         return _isBlacklisted[user];
     }
 
@@ -771,13 +649,8 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
      * @param users Array of addresses
      * @param blacklisted Array of blacklist statuses
      */
-    function batchUpdateBlacklist(
-        address[] memory users,
-        bool[] memory blacklisted
-    )
-        external
-        onlyAdminOrOwner
-    {
+    function batchUpdateBlacklist(address[] memory users, bool[] memory blacklisted) external {
+        learnWayAdmin.checkAdmin();
         require(users.length == blacklisted.length, "Arrays length mismatch");
         require(users.length <= MAX_BATCH_SIZE, "Batch size too large");
 
@@ -785,48 +658,16 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
             require(users[i] != address(0), "Invalid address");
             _isBlacklisted[users[i]] = blacklisted[i];
 
-            emit SecurityAlert(
-                users[i],
-                blacklisted[i] ? "BLACKLISTED" : "BLACKLIST_REMOVED",
-                block.timestamp
-            );
+            emit SecurityAlert(users[i], blacklisted[i] ? "BLACKLISTED" : "BLACKLIST_REMOVED", block.timestamp);
         }
-    }
-
-    /**
-     * @dev Grant role with event emission
-     * @param role Role to grant
-     * @param account Account to grant role to
-     */
-    function grantRoleWithEvent(bytes32 role, address account)
-        external
-        onlyOwner
-    {
-        grantRole(role, account);
-        emit RoleUpdated(account, role, true);
-    }
-
-    /**
-     * @dev Revoke role with event emission
-     * @param role Role to revoke
-     * @param account Account to revoke role from
-     */
-    function revokeRoleWithEvent(bytes32 role, address account)
-        external
-        onlyOwner
-    {
-        revokeRole(role, account);
-        emit RoleUpdated(account, role, false);
     }
 
     /**
      * @dev Enable or disable test mode (bypasses rate limiting for testing)
      * @param _testMode True to enable test mode, false to disable
      */
-    function setTestMode(bool _testMode)
-        external
-        onlyOwner
-    {
+    function setTestMode(bool _testMode) external {
+        learnWayAdmin.checkAdmin();
         testMode = _testMode;
     }
 
@@ -838,12 +679,7 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
     function getGasEstimates()
         external
         pure
-        returns (
-            uint256 registerUserGas,
-            uint256 awardGems,
-            uint256 spendGemsGas,
-            uint256 batchAward
-        )
+        returns (uint256 registerUserGas, uint256 awardGems, uint256 spendGemsGas, uint256 batchAward)
     {
         return (50000, 30000, 25000, 200000); // Estimated gas costs
     }
@@ -859,5 +695,9 @@ contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgrade
         returns (uint256 balance, uint256 lastUpdate)
     {
         return (_balances[user], _lastTransactionTime[user]);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override {
+        learnWayAdmin.checkAdmin();
     }
 }

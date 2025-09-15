@@ -40,7 +40,7 @@ contract PinataIntegrationTest is Test {
         badgesNFT.setLearnWayManager(address(learnWayManager));
 
         // Transfer ownership of subsidiary contracts to LearnWayManager
-        gemsContract.transferOwnership(address(learnWayManager));
+        // gemsContract.transferOwnership(address(learnWayManager));
         xpContract.transferOwnership(address(learnWayManager));
 
         // Register test user

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./Errors.sol";
 
-contract learnWayAdmin is
+contract LearnWayAdmin is
     Initializable,
     AccessControlUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -21,51 +21,6 @@ contract learnWayAdmin is
     bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-
-    // --- Modifiers ---
-    modifier onlyAdmin() {
-        if (!hasRole(ADMIN_ROLE, msg.sender)) {
-            revert UnauthorizedAdmin();
-        }
-        _;
-    }
-
-      modifier onlyPauser() {
-        if (!hasRole(PAUSER_ROLE, msg.sender)) {
-            revert UnauthorizedAdmin();
-        }
-        _;
-    }
-
-    modifier onlyManager() {
-        if (!hasRole(MANAGER_ROLE, msg.sender)) {
-            revert UnauthorizedManager();
-        }
-        _;
-    }
-
-    modifier onlyModerator() {
-        if (!hasRole(MODERATOR_ROLE, msg.sender)) {
-            revert UnauthorizedModerator();
-        }
-        _;
-    }
-
-    modifier onlyEmergency() {
-        if (!hasRole(EMERGENCY_ROLE, msg.sender)) {
-            revert UnauthorizedEmergency();
-        }
-        _;
-    }
-
-    modifier onlyAdminOrManager() {
-        require(
-            hasRole(ADMIN_ROLE, msg.sender) ||
-                hasRole(MANAGER_ROLE, msg.sender),
-            "Requires manager role or higher"
-        );
-        _;
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -87,12 +42,18 @@ contract learnWayAdmin is
         _setRoleAdmin(PAUSER_ROLE, ADMIN_ROLE);
     }
 
-    // Pause functionality
-    function pause() external onlyPauser {
+    // --- Access Check Functions ---
+
+    // --- Mutative Functions ---
+    function pause() external {
+        if (!hasRole(PAUSER_ROLE, msg.sender)) {
+            revert UnauthorizedPauser();
+        }
         _pause();
     }
 
-    function unpause() external onlyAdmin {
+    function unpause() external {
+        _checkAdmin();
         _unpause();
     }
 
@@ -109,7 +70,37 @@ contract learnWayAdmin is
         renounceRole(EMERGENCY_ROLE, msg.sender);
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override {
+        _checkAdmin();
+    }
+
+    function checkAdmin() external view {
+        if (!hasRole(ADMIN_ROLE, msg.sender)) {
+            revert UnauthorizedAdmin();
+        }
+    }
+
+    function checkModerator() external view {
+        if (!hasRole(MODERATOR_ROLE, msg.sender)) {
+            revert UnauthorizedModerator();
+        }
+    }
+
+    function checkAdminOrManager() external view {
+        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(MANAGER_ROLE, msg.sender)) {
+            revert UnauthorizedAdminOrManager();
+        }
+    }
+
+    function _checkAdmin() internal view {
+        if (!hasRole(ADMIN_ROLE, msg.sender)) {
+            revert UnauthorizedAdmin();
+        }
+    }
+
+    function checkEmergency() internal view {
+        if (!hasRole(EMERGENCY_ROLE, msg.sender)) {
+            revert UnauthorizedEmergency();
+        }
+    }
 }
