@@ -12,6 +12,7 @@ contract MockBadgesNFT {
     function recordContestWin(address) external {}
     function updateReferralCount(address, uint256) external {}
     function awardEliteBadge(address) external {}
+
     function getUserBadgeStatus(address) external view returns (bool[15] memory, uint256, uint256, uint256, uint256) {
         bool[15] memory badges;
         return (badges, 0, 0, 0, 0);

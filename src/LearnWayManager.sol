@@ -45,13 +45,16 @@ interface IBadgesNFT {
     function recordContestWin(address user) external;
     function updateReferralCount(address user, uint256 count) external;
     function awardEliteBadge(address user) external;
-    function getUserBadgeStatus(address user) external view returns (
-        bool[15] memory badges,
-        uint256 totalBadges,
-        uint256 consecutiveWins,
-        uint256 dailyStreak,
-        uint256 correctAnswers
-    );
+    function getUserBadgeStatus(address user)
+        external
+        view
+        returns (
+            bool[15] memory badges,
+            uint256 totalBadges,
+            uint256 consecutiveWins,
+            uint256 dailyStreak,
+            uint256 correctAnswers
+        );
 }
 
 /**
@@ -60,7 +63,6 @@ interface IBadgesNFT {
  * Coordinates between Gems and XP contracts and manages achievements, user profiles, and rewards
  */
 contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
-
     // Events
     event UserRegistered(address indexed user, address indexed referrer, uint256 timestamp);
     event QuizCompleted(address indexed user, uint256 score, uint256 gemsEarned, uint256 xpChange);
@@ -119,7 +121,11 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     }
 
     modifier contractsSet() {
-        require(address(gemsContract) != address(0) && address(xpContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
+        require(
+            address(gemsContract) != address(0) && address(xpContract) != address(0)
+                && address(badgesContract) != address(0),
+            "Contracts not set"
+        );
         _;
     }
 
@@ -133,11 +139,11 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param _xpContract Address of the XPContract
      * @param _badgesContract Address of the BadgesNFT contract
      */
-    function setContracts(address _gemsContract, address _xpContract, address _badgesContract)
-        external
-        onlyOwner
-    {
-        require(_gemsContract != address(0) && _xpContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
+    function setContracts(address _gemsContract, address _xpContract, address _badgesContract) external onlyOwner {
+        require(
+            _gemsContract != address(0) && _xpContract != address(0) && _badgesContract != address(0),
+            "Invalid contract addresses"
+        );
         gemsContract = IGemsContract(_gemsContract);
         xpContract = IXPContract(_xpContract);
         badgesContract = IBadgesNFT(_badgesContract);
@@ -149,11 +155,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param referralCode Address of the referrer (optional)
      * @param username Username for the user profile
      */
-    function registerUser(
-        address user,
-        address referralCode,
-        string memory username
-    )
+    function registerUser(address user, address referralCode, string memory username)
         external
         onlyOwner
         validAddress(user)
@@ -210,13 +212,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         string memory quizType,
         uint256 timeTaken,
         bool usedLifeline
-    )
-        external
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
+    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
         require(gemsContract.isRegistered(user), "User not registered");
         require(score <= 100, "Invalid score");
 
@@ -242,14 +238,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
 
         // Record quiz completion for badge tracking
         bool allCorrect = correctCount == correctAnswers.length;
-        badgesContract.recordQuizCompletion(
-            user,
-            quizType,
-            timeTaken,
-            usedLifeline,
-            allCorrect,
-            correctCount
-        );
+        badgesContract.recordQuizCompletion(user, quizType, timeTaken, usedLifeline, allCorrect, correctCount);
 
         // Check for Elite badge (5k coins)
         if (gemsContract.balanceOf(user) >= 5000) {
@@ -277,13 +266,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param xpEarned XP earned in the contest
      * @param isWin Whether the user won the contest
      */
-    function completeContest(
-        address user,
-        string memory contestId,
-        uint256 gemsEarned,
-        uint256 xpEarned,
-        bool isWin
-    )
+    function completeContest(address user, string memory contestId, uint256 gemsEarned, uint256 xpEarned, bool isWin)
         public
         onlyOwner
         validAddress(user)
@@ -344,13 +327,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         uint256 customXP,
         uint256 points,
         bool isHighestScore
-    )
-        public
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
+    ) public onlyOwner validAddress(user) contractsSet whenNotPaused {
         require(gemsContract.isRegistered(user), "User not registered");
 
         // Award gems if any
@@ -370,13 +347,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         profile.lastActiveDate = block.timestamp;
 
         // Record battle completion for badge tracking
-        badgesContract.recordBattleCompletion(
-            user,
-            battleType,
-            isWin,
-            points,
-            isHighestScore
-        );
+        badgesContract.recordBattleCompletion(user, battleType, isWin, points, isHighestScore);
 
         // Check for Elite badge (5k coins)
         if (gemsContract.balanceOf(user) >= 5000) {
@@ -397,11 +368,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param year Year
      * @param topUsers Array of top 3 users
      */
-    function distributeMonthlyRewards(
-        uint256 month,
-        uint256 year,
-        address[] memory topUsers
-    )
+    function distributeMonthlyRewards(uint256 month, uint256 year, address[] memory topUsers)
         external
         onlyOwner
         contractsSet
@@ -419,7 +386,9 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
 
             // Store reward amount for event
             if (i == 0) rewards[i] = 1000; // 1st place
+
             else if (i == 1) rewards[i] = 500; // 2nd place
+
             else rewards[i] = 250; // 3rd place
         }
 
@@ -435,11 +404,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param username New username
      * @param profileImageHash IPFS hash of profile image
      */
-    function updateUserProfile(
-        address user,
-        string memory username,
-        string memory profileImageHash
-    )
+    function updateUserProfile(address user, string memory username, string memory profileImageHash)
         external
         onlyOwner
         validAddress(user)
@@ -511,7 +476,8 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         userRank = address(xpContract) != address(0) ? xpContract.getUserRank(user) : 0;
 
         if (address(badgesContract) != address(0)) {
-            (badges, totalBadges, consecutiveWins, dailyStreak, correctAnswers) = badgesContract.getUserBadgeStatus(user);
+            (badges, totalBadges, consecutiveWins, dailyStreak, correctAnswers) =
+                badgesContract.getUserBadgeStatus(user);
         }
     }
 
@@ -521,11 +487,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param achievementId Achievement identifier
      * @return Whether the achievement is unlocked
      */
-    function hasAchievement(address user, string memory achievementId)
-        external
-        view
-        returns (bool)
-    {
+    function hasAchievement(address user, string memory achievementId) external view returns (bool) {
         bytes32 aid = keccak256(bytes(achievementId));
         return _userAchievements[user][aid];
     }
@@ -535,11 +497,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param achievementId Achievement identifier
      * @return Achievement struct
      */
-    function getAchievement(string memory achievementId)
-        external
-        view
-        returns (Achievement memory)
-    {
+    function getAchievement(string memory achievementId) external view returns (Achievement memory) {
         bytes32 aid = keccak256(bytes(achievementId));
         return _achievements[aid];
     }
@@ -558,11 +516,7 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
      * @param month Month
      * @return Array of top users for the month
      */
-    function getMonthlyTopUsers(uint256 year, uint256 month)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getMonthlyTopUsers(uint256 year, uint256 month) external view returns (address[] memory) {
         return _monthlyTopUsers[year][month];
     }
 
@@ -622,7 +576,9 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         _addAchievement("quiz_legend", "Quiz Legend", "Complete 200 quizzes", 1000, 200, "quizzes");
 
         // Contest achievements
-        _addAchievement("contest_participant", "Contest Participant", "Participate in your first contest", 150, 1, "contests");
+        _addAchievement(
+            "contest_participant", "Contest Participant", "Participate in your first contest", 150, 1, "contests"
+        );
         _addAchievement("contest_veteran", "Contest Veteran", "Participate in 25 contests", 750, 25, "contests");
 
         // Battle achievements
@@ -700,7 +656,6 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
         return _totalUsers;
     }
 
-
     // ==============================
     // Test Compatibility Functions
     // ==============================
@@ -708,12 +663,13 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Participate in contest (wrapper for completeContest with isWin=false)
      */
-    function participateInContest(
-        address user,
-        string memory contestId,
-        uint256 gemsEarned,
-        uint256 xpEarned
-    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
+    function participateInContest(address user, string memory contestId, uint256 gemsEarned, uint256 xpEarned)
+        external
+        onlyOwner
+        validAddress(user)
+        contractsSet
+        whenNotPaused
+    {
         completeContest(user, contestId, gemsEarned, xpEarned, false);
     }
 
@@ -760,12 +716,12 @@ contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Distribute monthly rewards with rewards array (test compatibility)
      */
-    function distributeMonthlyRewards(
-        uint256 month,
-        uint256 year,
-        address[] memory topUsers,
-        uint256[] memory rewards
-    ) external onlyOwner contractsSet whenNotPaused {
+    function distributeMonthlyRewards(uint256 month, uint256 year, address[] memory topUsers, uint256[] memory rewards)
+        external
+        onlyOwner
+        contractsSet
+        whenNotPaused
+    {
         require(month >= 1 && month <= 12, "Invalid month");
         require(topUsers.length == rewards.length, "Arrays length mismatch");
         require(!_monthlyRewardsDistributed[year][month], "Rewards already distributed for this month");

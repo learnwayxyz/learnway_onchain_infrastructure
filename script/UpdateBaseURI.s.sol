@@ -98,9 +98,9 @@ contract UpdateBaseURIScript is Script {
             return false;
         }
 
-        for (uint i = 0; i <= strBytes.length - subBytes.length; i++) {
+        for (uint256 i = 0; i <= strBytes.length - subBytes.length; i++) {
             bool found = true;
-            for (uint j = 0; j < subBytes.length; j++) {
+            for (uint256 j = 0; j < subBytes.length; j++) {
                 if (strBytes[i + j] != subBytes[j]) {
                     found = false;
                     break;

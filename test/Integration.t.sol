@@ -90,13 +90,17 @@ contract MockBadgesNFTExtended {
         totalEliteBadgesAwarded++;
     }
 
-    function getUserBadgeStatus(address user) external view returns (
-        bool[15] memory badges,
-        uint256 totalBadges,
-        uint256 consecutiveWins,
-        uint256 dailyStreak,
-        uint256 correctAnswers
-    ) {
+    function getUserBadgeStatus(address user)
+        external
+        view
+        returns (
+            bool[15] memory badges,
+            uint256 totalBadges,
+            uint256 consecutiveWins,
+            uint256 dailyStreak,
+            uint256 correctAnswers
+        )
+    {
         return (
             userBadges[user],
             userTotalBadges[user],
@@ -107,12 +111,11 @@ contract MockBadgesNFTExtended {
     }
 
     // Helper functions for testing
-    function getBadgeStats() external view returns (
-        uint256 quizCompletions,
-        uint256 battleCompletions,
-        uint256 contestWins,
-        uint256 eliteBadges
-    ) {
+    function getBadgeStats()
+        external
+        view
+        returns (uint256 quizCompletions, uint256 battleCompletions, uint256 contestWins, uint256 eliteBadges)
+    {
         return (totalQuizCompletions, totalBattleCompletions, totalContestWins, totalEliteBadgesAwarded);
     }
 }
@@ -152,7 +155,7 @@ contract IntegrationTest is Test {
         xpContract = new XPContract();
         badgesContract = new MockBadgesNFTExtended();
         manager = new LearnWayManager();
-//        manager = new LearnWayManager(address(gemsContract), address(xpContract), address(badgesContract));
+        //        manager = new LearnWayManager(address(gemsContract), address(xpContract), address(badgesContract));
 
         // Set up the integration
         manager.setContracts(address(gemsContract), address(xpContract), address(badgesContract));
@@ -176,7 +179,11 @@ contract IntegrationTest is Test {
 
         // 2. Complete first quiz
         bool[] memory answers1 = new bool[](5);
-        answers1[0] = true; answers1[1] = true; answers1[2] = false; answers1[3] = true; answers1[4] = true;
+        answers1[0] = true;
+        answers1[1] = true;
+        answers1[2] = false;
+        answers1[3] = true;
+        answers1[4] = true;
 
         manager.completeQuiz(user1, 85, answers1, "beginner_quiz", 120, false);
         assertEq(gemsContract.balanceOf(user1), 630); // 500 + 30 gems + 100 achievement bonus
@@ -219,7 +226,9 @@ contract IntegrationTest is Test {
 
         // Test 1: Quiz completion triggers multiple contract updates
         bool[] memory answers = new bool[](3);
-        answers[0] = true; answers[1] = true; answers[2] = true;
+        answers[0] = true;
+        answers[1] = true;
+        answers[2] = true;
 
         uint256 initialGems1 = gemsContract.balanceOf(user1);
         uint256 initialXP1 = xpContract.getXP(user1);
@@ -259,7 +268,11 @@ contract IntegrationTest is Test {
     function testComplexWorkflowScenarios() public {
         // Scenario: Multiple users competing in leaderboards
         address[] memory users = new address[](5);
-        users[0] = user1; users[1] = user2; users[2] = user3; users[3] = user4; users[4] = user5;
+        users[0] = user1;
+        users[1] = user2;
+        users[2] = user3;
+        users[3] = user4;
+        users[4] = user5;
 
         // Register all users
         for (uint256 i = 0; i < 5; i++) {
@@ -339,13 +352,13 @@ contract IntegrationTest is Test {
 
         // Perform quiz with mixed results
         bool[] memory mixedAnswers = new bool[](8);
-        mixedAnswers[0] = true;  // +4 XP
+        mixedAnswers[0] = true; // +4 XP
         mixedAnswers[1] = false; // -2 XP
-        mixedAnswers[2] = true;  // +4 XP
-        mixedAnswers[3] = true;  // +4 XP
+        mixedAnswers[2] = true; // +4 XP
+        mixedAnswers[3] = true; // +4 XP
         mixedAnswers[4] = false; // -2 XP
-        mixedAnswers[5] = true;  // +4 XP
-        mixedAnswers[6] = true;  // +4 XP
+        mixedAnswers[5] = true; // +4 XP
+        mixedAnswers[6] = true; // +4 XP
         mixedAnswers[7] = false; // -2 XP
 
         manager.completeQuiz(user1, 88, mixedAnswers, "consistency_test", 100, false);
@@ -408,7 +421,9 @@ contract IntegrationTest is Test {
 
         // Test quiz completion events
         bool[] memory answers = new bool[](3);
-        answers[0] = true; answers[1] = true; answers[2] = false;
+        answers[0] = true;
+        answers[1] = true;
+        answers[2] = false;
 
         vm.recordLogs();
         manager.completeQuiz(user1, 85, answers, "event_quiz", 90, false);
@@ -572,7 +587,10 @@ contract IntegrationTest is Test {
     function testConcurrentUserOperations() public {
         // Register multiple users
         address[] memory users = new address[](4);
-        users[0] = user1; users[1] = user2; users[2] = user3; users[3] = user4;
+        users[0] = user1;
+        users[1] = user2;
+        users[2] = user3;
+        users[3] = user4;
 
         for (uint256 i = 0; i < 4; i++) {
             string memory username = string(abi.encodePacked("concurrent", vm.toString(i)));
@@ -642,7 +660,9 @@ contract IntegrationTest is Test {
 
         // Simulate activity for all users
         bool[] memory answers = new bool[](3);
-        answers[0] = true; answers[1] = true; answers[2] = true;
+        answers[0] = true;
+        answers[1] = true;
+        answers[2] = true;
 
         uint256 gasBefore = gasleft();
 
@@ -684,7 +704,7 @@ contract IntegrationTest is Test {
             badgesContract.getBadgeStats();
 
         assertEq(quizCompletions, numUsers); // All users completed quizzes
-//        assertGt(battleCompletions, 0); // Some battles were completed
+        //        assertGt(battleCompletions, 0); // Some battles were completed
         uint256 battlesCounted = 0;
         for (uint256 i = 0; i < numUsers; i++) {
             LearnWayManager.UserProfile memory p = manager.getUserProfile(users[i]);

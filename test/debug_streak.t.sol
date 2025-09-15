@@ -28,11 +28,7 @@ contract DebugStreakTest is Test {
         learnWayManager = new LearnWayManager();
 
         // Set up contract relationships
-        learnWayManager.setContracts(
-            address(gemsContract),
-            address(xpContract),
-            address(badgesContract)
-        );
+        learnWayManager.setContracts(address(gemsContract), address(xpContract), address(badgesContract));
         badgesContract.setLearnWayManager(address(learnWayManager));
 
         // Transfer ownership of subsidiary contracts to LearnWayManager for proper access control
@@ -51,7 +47,7 @@ contract DebugStreakTest is Test {
         console.log("Starting timestamp:", currentTime);
 
         // Complete quiz for 5 consecutive days first to see the pattern
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             uint256 newTime = currentTime + (i * 1 days);
             vm.warp(newTime);
 
@@ -64,14 +60,7 @@ contract DebugStreakTest is Test {
             (,,, uint256 streakBefore,) = badgesContract.getUserBadgeStatus(user1);
             console.log("Streak before quiz:", streakBefore);
 
-            learnWayManager.completeQuiz(
-                user1,
-                80,
-                correctAnswers,
-                "general",
-                30,
-                false
-            );
+            learnWayManager.completeQuiz(user1, 80, correctAnswers, "general", 30, false);
 
             // Get streak after quiz
             (bool[15] memory badges,,, uint256 streakAfter,) = badgesContract.getUserBadgeStatus(user1);

@@ -36,11 +36,7 @@ contract PinataIntegrationTest is Test {
         learnWayManager = new LearnWayManager();
 
         // Set up contract relationships
-        learnWayManager.setContracts(
-            address(gemsContract),
-            address(xpContract),
-            address(badgesNFT)
-        );
+        learnWayManager.setContracts(address(gemsContract), address(xpContract), address(badgesNFT));
         badgesNFT.setLearnWayManager(address(learnWayManager));
 
         // Transfer ownership of subsidiary contracts to LearnWayManager
@@ -64,14 +60,7 @@ contract PinataIntegrationTest is Test {
         correctAnswers[3] = true;
         correctAnswers[4] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         string memory tokenURI = badgesNFT.tokenURI(1);
         assertTrue(bytes(tokenURI).length > 0);
@@ -91,14 +80,7 @@ contract PinataIntegrationTest is Test {
         correctAnswers[3] = true;
         correctAnswers[4] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         // Verify tokenURI now uses Pinata gateway
         string memory tokenURI = badgesNFT.tokenURI(1);
@@ -139,14 +121,7 @@ contract PinataIntegrationTest is Test {
         correctAnswers[3] = true;
         correctAnswers[4] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         string memory uri1 = badgesNFT.tokenURI(1);
         assertEq(uri1, string(abi.encodePacked(PINATA_GATEWAY, "first_spark.json")));
@@ -155,11 +130,11 @@ contract PinataIntegrationTest is Test {
         learnWayManager.completeBattle(
             user1,
             "1v1",
-            true,  // isWin
-            100,   // gemsEarned
-            0,     // customXP
-            150,   // points
-            false  // isHighestScore
+            true, // isWin
+            100, // gemsEarned
+            0, // customXP
+            150, // points
+            false // isHighestScore
         );
 
         string memory uri2 = badgesNFT.tokenURI(2);
@@ -214,14 +189,7 @@ contract PinataIntegrationTest is Test {
         correctAnswers[3] = true;
         correctAnswers[4] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         string memory uri1 = badgesNFT.tokenURI(1);
         assertEq(uri1, string(abi.encodePacked(gateway1, "first_spark.json")));
@@ -253,14 +221,7 @@ contract PinataIntegrationTest is Test {
         correctAnswers[3] = true;
         correctAnswers[4] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         string memory tokenURI = badgesNFT.tokenURI(1);
         assertEq(tokenURI, "first_spark.json"); // Should just return the imageURI
@@ -277,9 +238,9 @@ contract PinataIntegrationTest is Test {
             return false;
         }
 
-        for (uint i = 0; i <= strBytes.length - subBytes.length; i++) {
+        for (uint256 i = 0; i <= strBytes.length - subBytes.length; i++) {
             bool found = true;
-            for (uint j = 0; j < subBytes.length; j++) {
+            for (uint256 j = 0; j < subBytes.length; j++) {
                 if (strBytes[i + j] != subBytes[j]) {
                     found = false;
                     break;

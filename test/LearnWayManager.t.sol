@@ -50,13 +50,17 @@ contract MockBadgesNFT {
         userTotalBadges[user]++;
     }
 
-    function getUserBadgeStatus(address user) external view returns (
-        bool[15] memory badges,
-        uint256 totalBadges,
-        uint256 consecutiveWins,
-        uint256 dailyStreak,
-        uint256 correctAnswers
-    ) {
+    function getUserBadgeStatus(address user)
+        external
+        view
+        returns (
+            bool[15] memory badges,
+            uint256 totalBadges,
+            uint256 consecutiveWins,
+            uint256 dailyStreak,
+            uint256 correctAnswers
+        )
+    {
         return (
             userBadges[user],
             userTotalBadges[user],
@@ -86,7 +90,6 @@ contract LearnWayManagerTest is Test {
     event BattleCompleted(address indexed user, string battleType, bool isWin, uint256 gemsEarned, uint256 xpChange);
     event MonthlyRewardsDistributed(uint256 month, uint256 year, address[] topUsers, uint256[] rewards);
     event UserProfileUpdated(address indexed user, string profileData);
-
 
     function setUp() public {
         owner = address(this);
@@ -373,7 +376,9 @@ contract LearnWayManagerTest is Test {
         // Add various achievements
         manager.addAchievement("test_quiz_master", "Test Quiz Master", "Complete 5 quizzes", 200, 5, "quizzes");
         manager.addAchievement("test_xp_champion", "Test XP Champion", "Reach 1000 XP", 500, 1000, "xp");
-        manager.addAchievement("test_contest_warrior", "Test Contest Warrior", "Participate in 3 contests", 300, 3, "contests");
+        manager.addAchievement(
+            "test_contest_warrior", "Test Contest Warrior", "Participate in 3 contests", 300, 3, "contests"
+        );
 
         // Complete activities to unlock achievements
         bool[] memory correctAnswers = new bool[](3);
@@ -569,4 +574,3 @@ contract LearnWayManagerTest is Test {
         assertEq(profile.totalContestsParticipated, 1);
     }
 }
-

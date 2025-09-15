@@ -110,7 +110,8 @@ contract XPContractTest is Test {
         assertEq(xpContract.getXP(user1), 350);
 
         // Test contest leaderboard
-        (address[] memory participants, uint256[] memory xpScores) = xpContract.getContestLeaderboard("weekly_challenge");
+        (address[] memory participants, uint256[] memory xpScores) =
+            xpContract.getContestLeaderboard("weekly_challenge");
         assertEq(participants.length, 1);
         assertEq(participants[0], user1);
         assertEq(xpScores[0], 150); // 100 + 50 from weekly_challenge
@@ -240,7 +241,8 @@ contract XPContractTest is Test {
         assertEq(participantsB.length, 2);
 
         // Test empty contest leaderboard
-        (address[] memory emptyParticipants, uint256[] memory emptyScores) = xpContract.getContestLeaderboard("empty_contest");
+        (address[] memory emptyParticipants, uint256[] memory emptyScores) =
+            xpContract.getContestLeaderboard("empty_contest");
         assertEq(emptyParticipants.length, 0);
         assertEq(emptyScores.length, 0);
 
@@ -262,14 +264,14 @@ contract XPContractTest is Test {
         xpContract.registerUser(user1);
 
         // Perform various activities
-        xpContract.recordQuizAnswer(user1, true);  // +4 XP, correct++
+        xpContract.recordQuizAnswer(user1, true); // +4 XP, correct++
         xpContract.recordQuizAnswer(user1, false); // -2 XP, incorrect++
-        xpContract.recordQuizAnswer(user1, true);  // +4 XP, correct++
+        xpContract.recordQuizAnswer(user1, true); // +4 XP, correct++
 
         xpContract.recordContestParticipation(user1, "contest1", 50); // +50 XP, contests++
         xpContract.recordContestParticipation(user1, "contest2", 30); // +30 XP, contests++
 
-        xpContract.recordBattleResult(user1, "1v1", true, 0);   // +50 XP, battlesWon++
+        xpContract.recordBattleResult(user1, "1v1", true, 0); // +50 XP, battlesWon++
         xpContract.recordBattleResult(user1, "group", false, 0); // -10 XP, battlesLost++
         xpContract.recordBattleResult(user1, "tournament", true, 100); // +100 XP, battlesWon++
 

@@ -20,38 +20,41 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
 
     // Badge types enum
     enum BadgeType {
-        FIRST_SPARK,        // 0 - First public appearance (play quizZone first time)
-        DUEL_CHAMPION,      // 1 - Won one battle (1 vs 1)
-        SQUAD_SLAYER,       // 2 - Won one group battle
-        CROWN_HOLDER,       // 3 - Won one contest
-        LIGHTNING_ACE,      // 4 - Highest point gainer in battle
-        QUIZ_WARRIOR,       // 5 - Won back to back 3 battles
-        SUPERSONIC,         // 6 - Fastest puzzle solver (avg 25s for guess the word, min 5 questions)
-        SPEED_SCHOLAR,      // 7 - Average solver (avg 8s for fun & learn, min 5 questions)
-        BRAINIAC,           // 8 - 100% quiz without lifeline (min 5 questions)
-        QUIZ_TITAN,         // 9 - 5000 correct answers
-        ELITE,              // 10 - 5k coins in wallet
-        QUIZ_DEVOTEE,       // 11 - 30 days daily quiz play
-        POWER_ELITE,        // 12 - Achieved more than 10 badges
-        ECHO_SPREADER,      // 13 - Share app to more than 50 people
-        ROUTINE_MASTER      // 14 - Maintain streak for 30 days
+        FIRST_SPARK, // 0 - First public appearance (play quizZone first time)
+        DUEL_CHAMPION, // 1 - Won one battle (1 vs 1)
+        SQUAD_SLAYER, // 2 - Won one group battle
+        CROWN_HOLDER, // 3 - Won one contest
+        LIGHTNING_ACE, // 4 - Highest point gainer in battle
+        QUIZ_WARRIOR, // 5 - Won back to back 3 battles
+        SUPERSONIC, // 6 - Fastest puzzle solver (avg 25s for guess the word, min 5 questions)
+        SPEED_SCHOLAR, // 7 - Average solver (avg 8s for fun & learn, min 5 questions)
+        BRAINIAC, // 8 - 100% quiz without lifeline (min 5 questions)
+        QUIZ_TITAN, // 9 - 5000 correct answers
+        ELITE, // 10 - 5k coins in wallet
+        QUIZ_DEVOTEE, // 11 - 30 days daily quiz play
+        POWER_ELITE, // 12 - Achieved more than 10 badges
+        ECHO_SPREADER, // 13 - Share app to more than 50 people
+        ROUTINE_MASTER // 14 - Maintain streak for 30 days
+
     }
 
     // Badge rarity levels
     enum BadgeRarity {
-        COMMON,     // 0 - Basic achievement badges
-        RARE,       // 1 - Intermediate challenges
-        EPIC,       // 2 - Advanced accomplishments
-        LEGENDARY   // 3 - Elite achievements
+        COMMON, // 0 - Basic achievement badges
+        RARE, // 1 - Intermediate challenges
+        EPIC, // 2 - Advanced accomplishments
+        LEGENDARY // 3 - Elite achievements
+
     }
 
     // Badge tiers for classification
     enum BadgeTier {
-        BRONZE,    // 0 - Entry level
-        SILVER,    // 1 - Intermediate
-        GOLD,      // 2 - Advanced
-        PLATINUM,  // 3 - Expert
-        DIAMOND    // 4 - Master level
+        BRONZE, // 0 - Entry level
+        SILVER, // 1 - Intermediate
+        GOLD, // 2 - Advanced
+        PLATINUM, // 3 - Expert
+        DIAMOND // 4 - Master level
+
     }
 
     // Badge information struct
@@ -69,7 +72,6 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     struct UserBadgeData {
         mapping(BadgeType => bool) hasBadge;
         uint256 totalBadges;
-
         // Specific tracking for complex badges
         uint256 consecutiveWins;
         uint256 maxConsecutiveWins;
@@ -77,13 +79,11 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
         uint256 lastQuizDate;
         uint256 totalCorrectAnswers;
         uint256 referralCount;
-
         // Quiz performance tracking
         mapping(string => uint256) quizTypeCount; // "guess_word", "fun_learn"
         mapping(string => uint256) quizTypeTotalTime; // Total time spent on quiz type
         mapping(string => bool) perfectQuizzes; // Track 100% quizzes without lifeline
         uint256 perfectQuizCount;
-
         // Battle performance
         uint256 highestBattlePoints;
         bool hasWonDuel;
@@ -502,9 +502,7 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
      * @dev Check and award Supersonic badge (avg 25s for guess word, min 5 questions)
      */
     function _checkSupersonic(address user, UserBadgeData storage userData) internal {
-        if (!userData.hasBadge[BadgeType.SUPERSONIC] &&
-            userData.quizTypeCount["guess_word"] >= 5) {
-
+        if (!userData.hasBadge[BadgeType.SUPERSONIC] && userData.quizTypeCount["guess_word"] >= 5) {
             uint256 avgTime = userData.quizTypeTotalTime["guess_word"] / userData.quizTypeCount["guess_word"];
             if (avgTime <= 25) {
                 _awardBadge(user, BadgeType.SUPERSONIC);
@@ -516,9 +514,7 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
      * @dev Check and award Speed Scholar badge (avg 8s for fun & learn, min 5 questions)
      */
     function _checkSpeedScholar(address user, UserBadgeData storage userData) internal {
-        if (!userData.hasBadge[BadgeType.SPEED_SCHOLAR] &&
-            userData.quizTypeCount["fun_learn"] >= 5) {
-
+        if (!userData.hasBadge[BadgeType.SPEED_SCHOLAR] && userData.quizTypeCount["fun_learn"] >= 5) {
             uint256 avgTime = userData.quizTypeTotalTime["fun_learn"] / userData.quizTypeCount["fun_learn"];
             if (avgTime <= 8) {
                 _awardBadge(user, BadgeType.SPEED_SCHOLAR);
@@ -638,13 +634,17 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get user's badge status
      */
-    function getUserBadgeStatus(address user) external view returns (
-        bool[15] memory badges,
-        uint256 totalBadges,
-        uint256 consecutiveWins,
-        uint256 dailyStreak,
-        uint256 correctAnswers
-    ) {
+    function getUserBadgeStatus(address user)
+        external
+        view
+        returns (
+            bool[15] memory badges,
+            uint256 totalBadges,
+            uint256 consecutiveWins,
+            uint256 dailyStreak,
+            uint256 correctAnswers
+        )
+    {
         UserBadgeData storage userData = userBadgeData[user];
 
         for (uint256 i = 0; i < 15; i++) {
@@ -721,15 +721,19 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get comprehensive user performance analytics
      */
-    function getUserPerformanceAnalytics(address user) external view returns (
-        uint256 totalBadges,
-        uint256 badgePoints,
-        uint256 averageQuizTime,
-        uint256 perfectQuizzes,
-        uint256 longestStreak,
-        uint256 totalReferrals,
-        BadgeRarity highestRarity
-    ) {
+    function getUserPerformanceAnalytics(address user)
+        external
+        view
+        returns (
+            uint256 totalBadges,
+            uint256 badgePoints,
+            uint256 averageQuizTime,
+            uint256 perfectQuizzes,
+            uint256 longestStreak,
+            uint256 totalReferrals,
+            BadgeRarity highestRarity
+        )
+    {
         UserBadgeData storage userData = userBadgeData[user];
 
         totalBadges = userTotalBadges[user];
@@ -761,12 +765,16 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get badge distribution statistics
      */
-    function getBadgeDistributionStats() external view returns (
-        uint256[15] memory badgeCounts,
-        uint256[4] memory rarityDistribution,
-        uint256[5] memory tierDistribution,
-        uint256 totalBadgesMinted
-    ) {
+    function getBadgeDistributionStats()
+        external
+        view
+        returns (
+            uint256[15] memory badgeCounts,
+            uint256[4] memory rarityDistribution,
+            uint256[5] memory tierDistribution,
+            uint256 totalBadgesMinted
+        )
+    {
         // Count badges by type
         for (uint256 tokenId = 1; tokenId < _nextTokenId; tokenId++) {
             if (_ownerOf(tokenId) != address(0)) {
@@ -788,13 +796,17 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get system health monitoring data
      */
-    function getSystemHealthStats() external view returns (
-        uint256 totalUsers,
-        uint256 activeUsers,
-        uint256 averageBadgesPerUser,
-        uint256 totalBadgesMinted,
-        uint256 systemUptime
-    ) {
+    function getSystemHealthStats()
+        external
+        view
+        returns (
+            uint256 totalUsers,
+            uint256 activeUsers,
+            uint256 averageBadgesPerUser,
+            uint256 totalBadgesMinted,
+            uint256 systemUptime
+        )
+    {
         uint256 usersWithBadges = 0;
         totalBadgesMinted = _nextTokenId - 1;
 
@@ -837,10 +849,7 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Batch update metadata for multiple badges
      */
-    function batchUpdateMetadata(
-        BadgeType[] calldata badgeTypes,
-        string[] calldata newImageURIs
-    ) external onlyOwner {
+    function batchUpdateMetadata(BadgeType[] calldata badgeTypes, string[] calldata newImageURIs) external onlyOwner {
         require(badgeTypes.length == newImageURIs.length, "Array length mismatch");
 
         for (uint256 i = 0; i < badgeTypes.length; i++) {
@@ -853,7 +862,11 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Validate metadata integrity
      */
-    function validateBadgeMetadata(BadgeType badgeType) external view returns (bool isValid, string memory errorMessage) {
+    function validateBadgeMetadata(BadgeType badgeType)
+        external
+        view
+        returns (bool isValid, string memory errorMessage)
+    {
         BadgeInfo memory info = badgeInfo[badgeType];
 
         if (bytes(info.name).length == 0) {
@@ -877,12 +890,16 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get user's badge collection with detailed information
      */
-    function getUserBadgeShowcase(address user) external view returns (
-        BadgeType[] memory ownedBadges,
-        BadgeInfo[] memory badgeDetails,
-        uint256 totalPoints,
-        uint256 collectionCompleteness
-    ) {
+    function getUserBadgeShowcase(address user)
+        external
+        view
+        returns (
+            BadgeType[] memory ownedBadges,
+            BadgeInfo[] memory badgeDetails,
+            uint256 totalPoints,
+            uint256 collectionCompleteness
+        )
+    {
         uint256 userBadgeCount = userTotalBadges[user];
         ownedBadges = new BadgeType[](userBadgeCount);
         badgeDetails = new BadgeInfo[](userBadgeCount);
@@ -906,10 +923,11 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Get badges by rarity for a user
      */
-    function getUserBadgesByRarity(address user, BadgeRarity rarity) external view returns (
-        BadgeType[] memory badges,
-        uint256 count
-    ) {
+    function getUserBadgesByRarity(address user, BadgeRarity rarity)
+        external
+        view
+        returns (BadgeType[] memory badges, uint256 count)
+    {
         // First, count badges of this rarity
         count = 0;
         for (uint256 i = 0; i < 15; i++) {
@@ -971,12 +989,11 @@ contract BadgesNFT is ERC721, Ownable, ReentrancyGuard, Pausable {
     /**
      * @dev Audit function to verify badge integrity
      */
-    function auditUserBadges(address user) external view returns (
-        bool isConsistent,
-        uint256 expectedCount,
-        uint256 actualCount,
-        string memory issues
-    ) {
+    function auditUserBadges(address user)
+        external
+        view
+        returns (bool isConsistent, uint256 expectedCount, uint256 actualCount, string memory issues)
+    {
         UserBadgeData storage userData = userBadgeData[user];
         expectedCount = 0;
         actualCount = balanceOf(user);

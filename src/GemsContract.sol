@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title GemsContract
@@ -12,7 +14,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * Gems serve as the in-app currency and are earned through various activities
  * Enhanced with role-based access control and anti-spam mechanisms
  */
-contract GemsContract is Ownable, AccessControl, ReentrancyGuard, Pausable {
+contract GemsContract is Initializable, OwnableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
 
     // Events
     event GemsAwarded(address indexed user, uint256 amount, string reason);
@@ -77,7 +79,7 @@ contract GemsContract is Ownable, AccessControl, ReentrancyGuard, Pausable {
     uint256 private _totalSupply;
 
     // Test mode flag for bypassing rate limiting during testing
-    bool public testMode = false;
+    bool public testMode;
 
     // Rate limiting and security monitoring
     mapping(address => mapping(uint256 => uint256)) private _hourlyTransactionCount; // user => hour => count
@@ -138,7 +140,18 @@ contract GemsContract is Ownable, AccessControl, ReentrancyGuard, Pausable {
         _;
     }
 
-    constructor() Ownable(msg.sender) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        __Ownable_init(msg.sender);
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+
         // Set monthly leaderboard rewards
         monthlyLeaderboardRewards[1] = 1000; // 1st place
         monthlyLeaderboardRewards[2] = 500;  // 2nd place
@@ -155,6 +168,8 @@ contract GemsContract is Ownable, AccessControl, ReentrancyGuard, Pausable {
         _grantRole(MANAGER_ROLE, msg.sender);
         _grantRole(EMERGENCY_ROLE, msg.sender);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /**
      * @dev Register a new user and award signup bonus

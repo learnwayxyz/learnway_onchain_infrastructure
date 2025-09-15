@@ -180,7 +180,7 @@ contract GemsContractTest is Test {
         // Check balances updated
         assertEq(gemsContract.balanceOf(user1), 2500); // 1500 + 1000
         assertEq(gemsContract.balanceOf(user2), 1000); // 500 + 500
-        assertEq(gemsContract.balanceOf(user3), 750);  // 500 + 250
+        assertEq(gemsContract.balanceOf(user3), 750); // 500 + 250
 
         // Check reward history
         address[] memory history = gemsContract.getMonthlyRewardHistory(9, 2025);

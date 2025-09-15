@@ -11,7 +11,6 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * XPs are earned for correct answers and lost for incorrect ones, affecting leaderboard positions
  */
 contract XPContract is Ownable, ReentrancyGuard, Pausable {
-
     // Events
     event XPAwarded(address indexed user, uint256 amount, string reason);
     event XPDeducted(address indexed user, uint256 amount, string reason);
@@ -77,12 +76,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
      * @dev Register a new user
      * @param user Address of the new user
      */
-    function registerUser(address user)
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
+    function registerUser(address user) external onlyOwner validAddress(user) whenNotPaused {
         require(!_isRegistered[user], "User already registered");
 
         _isRegistered[user] = true;
@@ -106,12 +100,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
      * @param user Address of the user
      * @param isCorrect Whether the answer was correct
      */
-    function recordQuizAnswer(address user, bool isCorrect)
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
+    function recordQuizAnswer(address user, bool isCorrect) external onlyOwner validAddress(user) whenNotPaused {
         require(_isRegistered[user], "User not registered");
 
         UserStats storage stats = _userStats[user];
@@ -142,11 +131,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
      * @param contestId Unique identifier for the contest
      * @param xpEarned XP earned in the contest
      */
-    function recordContestParticipation(
-        address user,
-        string memory contestId,
-        uint256 xpEarned
-    )
+    function recordContestParticipation(address user, string memory contestId, uint256 xpEarned)
         external
         onlyOwner
         validAddress(user)
@@ -178,12 +163,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
      * @param isWin Whether the user won the battle
      * @param customXP Custom XP amount (optional, 0 to use default)
      */
-    function recordBattleResult(
-        address user,
-        string memory battleType,
-        bool isWin,
-        uint256 customXP
-    )
+    function recordBattleResult(address user, string memory battleType, bool isWin, uint256 customXP)
         external
         onlyOwner
         validAddress(user)
@@ -307,11 +287,7 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
 
         for (uint256 i = 0; i < actualCount; i++) {
             address user = _leaderboard[i];
-            topUsers[i] = LeaderboardEntry({
-                user: user,
-                xp: _userStats[user].totalXP,
-                rank: i + 1
-            });
+            topUsers[i] = LeaderboardEntry({user: user, xp: _userStats[user].totalXP, rank: i + 1});
         }
 
         return topUsers;
@@ -455,11 +431,11 @@ contract XPContract is Ownable, ReentrancyGuard, Pausable {
      * @param amounts Array of XP amounts (positive for award, negative for deduct)
      * @param reason Reason for XP change
      */
-    function batchUpdateXP(
-        address[] memory users,
-        int256[] memory amounts,
-        string memory reason
-    ) external onlyOwner whenNotPaused {
+    function batchUpdateXP(address[] memory users, int256[] memory amounts, string memory reason)
+        external
+        onlyOwner
+        whenNotPaused
+    {
         require(users.length == amounts.length, "Arrays length mismatch");
 
         for (uint256 i = 0; i < users.length; i++) {

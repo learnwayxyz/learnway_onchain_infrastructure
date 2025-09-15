@@ -32,11 +32,7 @@ contract BadgesNFTTest is Test {
         learnWayManager = new LearnWayManager();
 
         // Set up contract relationships
-        learnWayManager.setContracts(
-            address(gemsContract),
-            address(xpContract),
-            address(badgesContract)
-        );
+        learnWayManager.setContracts(address(gemsContract), address(xpContract), address(badgesContract));
         badgesContract.setLearnWayManager(address(learnWayManager));
 
         // Transfer ownership of subsidiary contracts to LearnWayManager for proper access control
@@ -59,14 +55,7 @@ contract BadgesNFTTest is Test {
         correctAnswers[4] = true;
 
         // Complete first quiz
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "fun_learn",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "fun_learn", 30, false);
 
         // Check if First Spark badge was awarded
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
@@ -81,11 +70,11 @@ contract BadgesNFTTest is Test {
         learnWayManager.completeBattle(
             user1,
             "1v1",
-            true,  // isWin
-            100,   // gemsEarned
-            0,     // customXP
-            150,   // points
-            false  // isHighestScore
+            true, // isWin
+            100, // gemsEarned
+            0, // customXP
+            150, // points
+            false // isHighestScore
         );
 
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
@@ -97,11 +86,11 @@ contract BadgesNFTTest is Test {
         learnWayManager.completeBattle(
             user1,
             "group",
-            true,  // isWin
-            150,   // gemsEarned
-            0,     // customXP
-            200,   // points
-            false  // isHighestScore
+            true, // isWin
+            150, // gemsEarned
+            0, // customXP
+            200, // points
+            false // isHighestScore
         );
 
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
@@ -113,9 +102,9 @@ contract BadgesNFTTest is Test {
         learnWayManager.completeContest(
             user1,
             "contest_001",
-            200,  // gemsEarned
-            100,  // xpEarned
-            true  // isWin
+            200, // gemsEarned
+            100, // xpEarned
+            true // isWin
         );
 
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
@@ -127,11 +116,11 @@ contract BadgesNFTTest is Test {
         learnWayManager.completeBattle(
             user1,
             "1v1",
-            true,  // isWin
-            100,   // gemsEarned
-            0,     // customXP
-            300,   // points
-            true   // isHighestScore
+            true, // isWin
+            100, // gemsEarned
+            0, // customXP
+            300, // points
+            true // isHighestScore
         );
 
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
@@ -140,19 +129,20 @@ contract BadgesNFTTest is Test {
 
     function testQuizWarriorBadge() public {
         // Test Quiz Warrior badge - 3 consecutive wins
-        for (uint i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 3; i++) {
             learnWayManager.completeBattle(
                 user1,
                 "1v1",
-                true,  // isWin
-                50,    // gemsEarned
-                0,     // customXP
-                100,   // points
-                false  // isHighestScore
+                true, // isWin
+                50, // gemsEarned
+                0, // customXP
+                100, // points
+                false // isHighestScore
             );
         }
 
-        (bool[15] memory badges, uint256 totalBadges, uint256 consecutiveWins,,) = badgesContract.getUserBadgeStatus(user1);
+        (bool[15] memory badges, uint256 totalBadges, uint256 consecutiveWins,,) =
+            badgesContract.getUserBadgeStatus(user1);
 
         // Should have Quiz Warrior badge due to 3 consecutive wins
         assertTrue(badges[5]); // QUIZ_WARRIOR is index 5
@@ -170,7 +160,7 @@ contract BadgesNFTTest is Test {
         correctAnswers[2] = true;
 
         // Complete 5 guess_word quizzes with good timing
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(
                 user1,
                 100,
@@ -192,7 +182,7 @@ contract BadgesNFTTest is Test {
         correctAnswers[1] = true;
 
         // Complete 5 fun_learn quizzes with excellent timing
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(
                 user1,
                 100,
@@ -216,7 +206,7 @@ contract BadgesNFTTest is Test {
         correctAnswers[3] = true;
 
         // Complete 5 perfect quizzes without lifeline
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(
                 user1,
                 100,
@@ -237,20 +227,13 @@ contract BadgesNFTTest is Test {
 
         // Record a large number of correct answers directly through the badge contract
         bool[] memory correctAnswers = new bool[](100);
-        for (uint i = 0; i < 100; i++) {
+        for (uint256 i = 0; i < 100; i++) {
             correctAnswers[i] = true;
         }
 
         // Complete 50 quizzes with 100 correct answers each = 5000 total
-        for (uint i = 0; i < 50; i++) {
-            learnWayManager.completeQuiz(
-                user1,
-                100,
-                correctAnswers,
-                "general",
-                60,
-                false
-            );
+        for (uint256 i = 0; i < 50; i++) {
+            learnWayManager.completeQuiz(user1, 100, correctAnswers, "general", 60, false);
         }
 
         (bool[15] memory badges,,,, uint256 correctCount) = badgesContract.getUserBadgeStatus(user1);
@@ -265,22 +248,15 @@ contract BadgesNFTTest is Test {
             user1,
             "elite_test_contest",
             5000, // gemsEarned - enough to reach 5k coins
-            100,  // xpEarned
-            true  // isWin
+            100, // xpEarned
+            true // isWin
         );
 
         // Trigger additional badge check by completing any activity
         bool[] memory correctAnswers = new bool[](1);
         correctAnswers[0] = true;
 
-        learnWayManager.completeQuiz(
-            user1,
-            80,
-            correctAnswers,
-            "general",
-            30,
-            false
-        );
+        learnWayManager.completeQuiz(user1, 80, correctAnswers, "general", 30, false);
 
         (bool[15] memory badges,,,,) = badgesContract.getUserBadgeStatus(user1);
         assertTrue(badges[10]); // ELITE is index 10
@@ -299,17 +275,10 @@ contract BadgesNFTTest is Test {
         uint256 currentTime = block.timestamp;
 
         // Complete quiz for 30 consecutive days
-        for (uint i = 0; i < 30; i++) {
+        for (uint256 i = 0; i < 30; i++) {
             vm.warp(currentTime + (i * 1 days));
 
-            learnWayManager.completeQuiz(
-                user1,
-                80,
-                correctAnswers,
-                "general",
-                30,
-                false
-            );
+            learnWayManager.completeQuiz(user1, 80, correctAnswers, "general", 30, false);
         }
 
         (bool[15] memory badges,,, uint256 dailyStreak,) = badgesContract.getUserBadgeStatus(user1);
@@ -333,17 +302,10 @@ contract BadgesNFTTest is Test {
         uint256 currentTime = block.timestamp;
 
         // Complete quiz for 30 consecutive days
-        for (uint i = 0; i < 30; i++) {
+        for (uint256 i = 0; i < 30; i++) {
             vm.warp(currentTime + (i * 1 days));
 
-            learnWayManager.completeQuiz(
-                user1,
-                80,
-                correctAnswers,
-                "general",
-                30,
-                false
-            );
+            learnWayManager.completeQuiz(user1, 80, correctAnswers, "general", 30, false);
         }
 
         (bool[15] memory badges,,, uint256 dailyStreak,) = badgesContract.getUserBadgeStatus(user1);
@@ -356,7 +318,7 @@ contract BadgesNFTTest is Test {
         // We need to earn 10 different badges first
 
         bool[] memory correctAnswers = new bool[](10);
-        for (uint i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < 10; i++) {
             correctAnswers[i] = true;
         }
 
@@ -381,12 +343,12 @@ contract BadgesNFTTest is Test {
         // 7. Supersonic - 5 fast guess_word quizzes
         bool[] memory shortAnswers = new bool[](1);
         shortAnswers[0] = true;
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(user1, 100, shortAnswers, "guess_word", 20, false);
         }
 
         // 8. Speed Scholar - 5 fast fun_learn quizzes
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(user1, 100, shortAnswers, "fun_learn", 7, false);
         }
 
@@ -395,7 +357,7 @@ contract BadgesNFTTest is Test {
         perfectAnswers[0] = true;
         perfectAnswers[1] = true;
         perfectAnswers[2] = true;
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             learnWayManager.completeQuiz(user1, 100, perfectAnswers, "general", 60, false);
         }
 
@@ -404,8 +366,8 @@ contract BadgesNFTTest is Test {
             user1,
             "power_elite_contest",
             5000, // gemsEarned - enough to reach 5k coins
-            100,  // xpEarned
-            true  // isWin
+            100, // xpEarned
+            true // isWin
         );
 
         // Now check if Power Elite badge was awarded (should trigger automatically when 10th badge is earned)
@@ -489,7 +451,7 @@ contract BadgesNFTTest is Test {
 
         // Complete a quiz - should award both badge and trigger existing achievements
         bool[] memory correctAnswers = new bool[](5);
-        for (uint i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             correctAnswers[i] = true;
         }
 
@@ -512,7 +474,9 @@ contract BadgesNFTTest is Test {
             uint256 xpBalance,
             uint256 userRank,
             bool[15] memory badgesFromManager,
-            uint256 totalBadges,,,
+            uint256 totalBadges,
+            ,
+            ,
         ) = learnWayManager.getUserData(user1);
 
         assertEq(profile.totalQuizzesCompleted, 1);
