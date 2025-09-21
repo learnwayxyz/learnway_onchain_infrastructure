@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "./Errors.sol";
 
 import "./interface/ILearnWayAdmin.sol";
 
@@ -94,31 +95,29 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
     // Events
     event BadgeEarned(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier);
     event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier);
+    event Initialized(address admin, uint256 timestamp);
     // event MetadataUpdate(uint256 tokenId); // ERC-4906 compliant
 
     modifier onlyAdmin() {
-        adminContract.checkAdmin();
+        if (!adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender)) revert UnauthorizedAdmin();
         _;
     }
 
     modifier onlyAdminOrManager() {
-        adminContract.checkAdminOrManager();
+        if (!adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)) revert UnauthorizedAdminOrManager();
         _;
-    }
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
     }
 
     function initialize(address _adminContract) external initializer {
         __ERC721_init("LearnWay Badge", "LWB");
         __ERC721URIStorage_init();
         __UUPSUpgradeable_init();
+        // __Ownable_init(msg.sender);
 
         adminContract = ILearnWayAdmin(_adminContract);
         _tokenIdCounter = 1;
         _initializeBadges();
+        emit Initialized(_adminContract, block.timestamp);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
@@ -264,7 +263,7 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
 
     function updateUserStats(address user, uint256 statType, uint256[] calldata values) external onlyAdminOrManager {
         UserStats storage stats = userStats[user];
-
+        if (values.length == 0) return;
         if (statType == 0) {
             // Quiz stats
             bool isFirstQuiz = stats.totalQuizzes == 0;

@@ -103,4 +103,11 @@ contract LearnWayAdmin is
             revert UnauthorizedEmergency();
         }
     }
+
+    function isAuthorized(bytes32 role, address account) external view returns (bool) {
+        if (hasRole(role, account)) {
+            return true;
+        }
+        return false;
+    }
 }

@@ -6,4 +6,5 @@ interface ILearnWayAdmin {
     function checkAdminOrManager() external view;
     function checkModerator() external view;
     function checkEmergency() external view;
+    function isAuthorized(bytes32 role, address account) external view returns (bool);
 }
