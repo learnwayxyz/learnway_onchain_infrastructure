@@ -671,18 +671,7 @@ contract GemsContract is Initializable, ReentrancyGuardUpgradeable, PausableUpgr
         testMode = _testMode;
     }
 
-    // ===== GAS OPTIMIZATION AND MONITORING =====
-
-    /**
-     * @dev Get gas usage estimate for common operations
-     */
-    function getGasEstimates()
-        external
-        pure
-        returns (uint256 registerUserGas, uint256 awardGems, uint256 spendGemsGas, uint256 batchAward)
-    {
-        return (50000, 30000, 25000, 200000); // Estimated gas costs
-    }
+  
 
     /**
      * @dev Optimized balance check with caching
