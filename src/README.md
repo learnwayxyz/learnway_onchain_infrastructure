@@ -3,6 +3,7 @@
 This directory contains the smart contracts for the LearnWay learn-to-earn module, designed to make certain information immutable on the blockchain.
 
 ## Additional Resources - Gitbook source url
+
 https://learnway.gitbook.io/learnway/
 
 ## Overview
@@ -20,6 +21,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 **Purpose**: Manages non-transferable Gems tokens that serve as the in-app currency within the LearnWay application.
 
 **Key Features**:
+
 - Non-transferable tokens (users cannot send gems to each other)
 - Automated reward distribution for various activities
 - Referral system with bonuses
@@ -28,6 +30,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 - Emergency pause functionality
 
 **Gem Earning Mechanisms**:
+
 - **New User Sign-Up Bonus**: 500 Gems
 - **Sign-Up with Referral Code**: Extra 50 Gems for new user
 - **Referral Bonus**: 100 Gems for the referrer
@@ -36,6 +39,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 - **Monthly Leaderboard**: 1000/500/250 Gems for top 3 positions
 
 **Main Functions**:
+
 - `registerUser(address user, address referralCode)` - Register new user with optional referral
 - `awardQuizGems(address user, uint256 score)` - Award gems for quiz completion
 - `awardContestGems(address user, uint256 amount, string contestType)` - Award gems for contests/battles
@@ -48,6 +52,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 **Purpose**: Manages Experience Points (XPs) that users earn for correct answers and lose for incorrect ones, determining leaderboard positions.
 
 **Key Features**:
+
 - Dynamic XP earning and losing system
 - Real-time leaderboard management with automatic ranking
 - Contest-specific leaderboards
@@ -56,6 +61,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 - Configurable XP rewards and penalties
 
 **XP Earning/Losing Mechanisms**:
+
 - **Correct Quiz Answer**: +10 XP (configurable)
 - **Incorrect Quiz Answer**: -5 XP (configurable)
 - **Contest Participation**: +25 XP (configurable)
@@ -63,6 +69,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 - **Battle Loss**: -10 XP (configurable)
 
 **Main Functions**:
+
 - `registerUser(address user)` - Register new user
 - `recordQuizAnswer(address user, bool isCorrect)` - Record quiz answer and update XP
 - `recordContestParticipation(address user, string contestId, uint256 xpEarned)` - Record contest participation
@@ -76,6 +83,7 @@ The LearnWay ecosystem consists of three main smart contracts:
 **Purpose**: Central management contract that coordinates between Gems and XP contracts, manages user profiles, achievements, and provides unified functionality.
 
 **Key Features**:
+
 - Unified user registration across both systems
 - Achievement system with automatic unlocking
 - User profile management with activity tracking
@@ -87,27 +95,33 @@ The LearnWay ecosystem consists of three main smart contracts:
 The contract includes a built-in achievement system with the following default achievements:
 
 **Quiz Achievements**:
+
 - First Steps: Complete 1 quiz (100 gems)
 - Quiz Master: Complete 50 quizzes (500 gems)
 - Quiz Legend: Complete 200 quizzes (1000 gems)
 
 **Contest Achievements**:
+
 - Contest Participant: Participate in 1 contest (150 gems)
 - Contest Veteran: Participate in 25 contests (750 gems)
 
 **Battle Achievements**:
+
 - First Battle: Participate in 1 battle (200 gems)
 - Battle Warrior: Participate in 100 battles (1000 gems)
 
 **XP Achievements**:
+
 - XP Collector: Earn 1000 XP (300 gems)
 - XP Master: Earn 10000 XP (1500 gems)
 
 **Gems Achievements**:
+
 - Gem Saver: Accumulate 5000 gems (500 gems)
 - Gem Collector: Accumulate 20000 gems (2000 gems)
 
 **Main Functions**:
+
 - `setContracts(address _gemsContract, address _xpContract)` - Set contract addresses
 - `registerUser(address user, address referralCode, string username)` - Unified user registration
 - `completeQuiz(address user, uint256 score, bool[] correctAnswers)` - Process quiz completion
@@ -166,33 +180,49 @@ Before deployment, ensure comprehensive testing of:
 6. Edge cases (zero balances, maximum values, etc.)
 
 ## Contract Addresses
-1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0xCF5CD0144087419ec376Fc45F2984dc5D6C955AA?tab=contract
+
+1. Gems Contract: https://sepolia-blockscout.lisk.com/address/0xDC7172a023b773c3dB186a98fB4A60D2cB26311f?tab=contract
 2. XP Contract: https://sepolia-blockscout.lisk.com/address/0x79b90f2237304DfaA519Bfab5893eD541Aa49fF1?tab=contract
-3. LearnWay Manager Contract: https://sepolia-blockscout.lisk.com/address/0xA72ea6360E3402372ED7337A49ff7cCD072A35Ac?tab=contract
-4. Badges NFT Contract: https://sepolia-blockscout.lisk.com/address/0x8715165e903D35333E40d1E2e714d2F88242C576?tab=contract
+3. LearnWay Manager Contract: https://sepolia-blockscout.lisk.com/address/0x55541731173DFC29b7CdB37ff6BB23d010f40242?tab=contract
+4. Badges NFT Contract: https://sepolia-blockscout.lisk.com/address/0xbaa84e15a47da0eef5F187ef9446fb82633592B7?tab=contract
+
+5. Admin Contract: https://sepolia-blockscout.lisk.com/address/0xcA3B36b55E3a0be7FbB7c7789D590D81ba55C578?tab=contract
+
+```js
+1: Address 0xcA3B36b55E3a0be7FbB7c7789D590D81ba55C578 admin contract
+2: Address 0xbaa84e15a47da0eef5F187ef9446fb82633592B7 badge contract
+3: Address 0xDC7172a023b773c3dB186a98fB4A60D2cB26311f gems contract
+4. Address 0x55541731173DFC29b7CdB37ff6BB23d010f40242 Manager contract
+```
 
 ## How To Setup
+
 Install Forge CLI:
+
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 ```
 
 Verify Forge CLI installation:
+
 ```bash
 forge -V
 ```
 
 Install OpenZeppelin contracts:
+
 ```bash
 forge install OpenZeppelin/openzeppelin-contracts --no-commit
 ```
 
 ## How To Deploy
+
 ```bash
 forge create src/LearnWayManager.sol:LearnWayManager --rpc-url https://rpc.sepolia-api.lisk.com --private-key <YOUR_PRIVATE_KEY>
 ```
 
 ## How To Verify
+
 ```bash
 forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
   --verifier blockscout \
@@ -204,3 +234,10 @@ forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
 ## License
 
 These contracts are licensed under the MIT License.
+forge create src/GemsContract.sol:GemsContract --rpc-url https://rpc.sepolia-api.lisk.com --private-key 0xc5d00c976ca270200e839ce0cd2e5290284c139d0da1d4dd8a1ba3449c2c5782 --broadcast
+
+forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
+ --verifier blockscout \
+ --verifier-url 'https://sepolia-blockscout.lisk.com/api/' \
+ 0x55541731173DFC29b7CdB37ff6BB23d010f40242 \
+ src/LearnWayManager.sol:LearnWayManager

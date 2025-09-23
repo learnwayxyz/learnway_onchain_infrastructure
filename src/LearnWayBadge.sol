@@ -1,26 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Errors.sol";
-
 import "./interface/ILearnWayAdmin.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title LearnWayBadge
  * @dev Upgradeable NFT contract for LearnWay badges with dynamic on-chain metadata
  * Integrates with central LearnWayAdmin for access control
  */
-contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgradeable, UUPSUpgradeable {
+contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
     using Strings for uint256;
 
     ILearnWayAdmin public adminContract;
-    uint256 private _tokenIdCounter;
+    uint16 private _tokenIdCounter = 1;
 
     // Badge Categories
     enum BadgeCategory {
@@ -46,9 +44,8 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
     struct Badge {
         string name;
         BadgeCategory category;
-        string emoji;
         bool isDynamic;
-        uint256 maxSupply;
+        uint16 maxSupply;
         uint256 currentSupply;
     }
 
@@ -88,7 +85,7 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
     mapping(uint256 => BadgeAttributes) public tokenAttributes;
     mapping(address => uint256[]) public userBadgeList;
 
-    uint256 public constant MAX_EARLY_BIRD_SPOTS = 1000;
+    uint16 public constant MAX_EARLY_BIRD_SPOTS = 1000;
     uint256 public earlyBirdCount;
     string public baseTokenURI;
 
@@ -108,19 +105,10 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
         _;
     }
 
-    function initialize(address _adminContract) external initializer {
-        __ERC721_init("LearnWay Badge", "LWB");
-        __ERC721URIStorage_init();
-        __UUPSUpgradeable_init();
-        // __Ownable_init(msg.sender);
-
-        adminContract = ILearnWayAdmin(_adminContract);
-        _tokenIdCounter = 1;
+        constructor(address _admin) ERC721("LearnWay Badges", "LWB")  {
+        adminContract = ILearnWayAdmin(_admin);
         _initializeBadges();
-        emit Initialized(_adminContract, block.timestamp);
     }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /**
      * @dev Initialize all 24 badge types efficiently
@@ -151,33 +139,6 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
             "Event Star",
             "Grandmaster",
             "Hall of Famer"
-        ];
-
-        string[24] memory emojis = [
-            unicode"🎉",
-            unicode"🔥",
-            unicode"🧭",
-            unicode"🗺️",
-            unicode"🎮",
-            unicode"🧠",
-            unicode"🧩",
-            unicode"🏆",
-            unicode"📅",
-            unicode"🕒",
-            unicode"🙌",
-            unicode"💎",
-            unicode"🥇",
-            unicode"🛡️",
-            unicode"👑",
-            unicode"🪙",
-            unicode"🌐",
-            unicode"💸",
-            unicode"🏆",
-            unicode"🤝",
-            unicode"📢",
-            unicode"🎤",
-            unicode"🧙🏾‍♂️",
-            unicode"🌟"
         ];
 
         BadgeCategory[24] memory categories = [
@@ -234,20 +195,25 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
             false // Ultimate
         ];
 
-        uint256[24] memory maxSupplies =
+        uint16[24] memory maxSupplies =
             [0, 0, MAX_EARLY_BIRD_SPOTS, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
 
         for (uint256 i = 0; i < 24; i++) {
             badges[i] = Badge({
                 name: names[i],
                 category: categories[i],
-                emoji: emojis[i],
+                // emoji: emojis[i],
                 isDynamic: isDynamic[i],
                 maxSupply: maxSupplies[i],
                 currentSupply: 0
             });
         }
     }
+
+    // function updateKycStatus(address user, bool kycStatus) external onlyAdminOrManager {
+    //     userStats[user].kycCompleted = kycStatus;
+    //     _updateDynamicBadge(user, 0);
+    // }
 
     function registerUser(address user, bool kycStatus) external onlyAdminOrManager {
         require(userStats[user].totalBadgesEarned == 0, "User already registered");
@@ -357,7 +323,7 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
             attrs.lastUpdated = block.timestamp;
 
             emit BadgeUpgraded(user, badgeId, tokenId, newTier);
-            emit MetadataUpdate(tokenId);
+            // emit MetadataUpdate(tokenId);
         }
     }
 
@@ -434,10 +400,10 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
     function tokenURI(uint256 tokenId)
         public
         view
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        override
         returns (string memory)
     {
-        string memory customURI = ERC721URIStorageUpgradeable.tokenURI(tokenId);
+        string memory customURI = ERC721.tokenURI(tokenId);
 
         // If admin has set a custom URI, use it
         if (bytes(customURI).length > 0) {
@@ -462,8 +428,6 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
             abi.encodePacked(
                 '{"name":"',
                 badge.name,
-                " ",
-                badge.emoji,
                 '",',
                 '"description":"',
                 _getDescription(badgeId, attrs.tier, attrs.progress),
@@ -622,15 +586,16 @@ contract LearnWayBadge is Initializable, ERC721Upgradeable, ERC721URIStorageUpgr
         adminContract = ILearnWayAdmin(newAdmin);
     }
 
-    function setTokenURI(uint256 tokenId, string calldata uri) external onlyAdmin {
-        _setTokenURI(tokenId, uri);
-    }
+    // Remove setTokenURI since _setTokenURI is not available in ERC721
+    // function setTokenURI(uint256 tokenId, string calldata uri) external onlyAdmin {
+    //     _setTokenURI(tokenId, uri);
+    // }
 
     // Required overrides
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        override
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

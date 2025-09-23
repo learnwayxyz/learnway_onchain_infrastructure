@@ -20,19 +20,17 @@ echo "$DEPLOY_OUTPUT"
 # Extract addresses
 ADMIN_PROXY=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $1}')
 ADMIN_IMPL=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $2}')
-BADGE_PROXY=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $3}')
 BADGE_IMPL=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $4}')
 GEMS_PROXY=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $5}')
 GEMS_IMPL=$(echo "$DEPLOY_OUTPUT" | grep -A 1 "Returns:" | tail -n 1 | awk '{print $6}')
 
 # Save addresses to file
-echo "{\"admin_proxy\": \"$ADMIN_PROXY\", \"admin_implementation\": \"$ADMIN_IMPL\", \"badge_proxy\": \"$BADGE_PROXY\", \"badge_implementation\": \"$BADGE_IMPL\", \"gems_proxy\": \"$GEMS_PROXY\", \"gems_implementation\": \"$GEMS_IMPL\"}" > deployment_addresses.json
+echo "{\"admin_proxy\": \"$ADMIN_PROXY\", \"admin_implementation\": \"$ADMIN_IMPL\", \"badge_implementation\": \"$BADGE_IMPL\", \"gems_proxy\": \"$GEMS_PROXY\", \"gems_implementation\": \"$GEMS_IMPL\"}" > deployment_addresses.json
 
 # Log addresses
 echo "Deployment addresses:"
 echo "  Admin Proxy: $ADMIN_PROXY"
 echo "  Admin Implementation: $ADMIN_IMPL"
-echo "  Badge Proxy: $BADGE_PROXY"
 echo "  Badge Implementation: $BADGE_IMPL"
 echo "  Gems Proxy: $GEMS_PROXY"
 echo "  Gems Implementation: $GEMS_IMPL"
