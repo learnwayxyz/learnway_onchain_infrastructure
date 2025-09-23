@@ -234,10 +234,3 @@ forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
 ## License
 
 These contracts are licensed under the MIT License.
-forge create src/GemsContract.sol:GemsContract --rpc-url https://rpc.sepolia-api.lisk.com --private-key 0xc5d00c976ca270200e839ce0cd2e5290284c139d0da1d4dd8a1ba3449c2c5782 --broadcast
-
-forge verify-contract --rpc-url https://rpc.sepolia-api.lisk.com \
- --verifier blockscout \
- --verifier-url 'https://sepolia-blockscout.lisk.com/api/' \
- 0x55541731173DFC29b7CdB37ff6BB23d010f40242 \
- src/LearnWayManager.sol:LearnWayManager
