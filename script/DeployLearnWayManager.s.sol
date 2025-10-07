@@ -17,11 +17,12 @@ contract DeployLearnWayManager is Script {
         LearnWayAdmin admin = LearnWayAdmin(0xcA3B36b55E3a0be7FbB7c7789D590D81ba55C578);
 
         // deploy LearnWayManager contract 
-         LearnWayManager managerContract = new LearnWayManager(address(admin));
+         LearnWayManager managerContract =  LearnWayManager(address(0x55541731173DFC29b7CdB37ff6BB23d010f40242));
 
 
         // admin.grantRole(admin.ADMIN_ROLE(), address(badgeProxy));
         admin.grantRole(admin.ADMIN_ROLE(), address(managerContract));
+        admin.grantRole(admin.MANAGER_ROLE(), address(managerContract));
 
 
         vm.stopBroadcast();

@@ -75,6 +75,7 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         bool hasFirstDeposit;
         bool attendedEvent;
         uint256 totalBadgesEarned;
+        uint256 registrationOrder; // Track registration order for early bird eligibility
     }
 
     // Mappings
@@ -86,12 +87,14 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
     mapping(address => uint256[]) public userBadgeList;
 
     uint16 public constant MAX_EARLY_BIRD_SPOTS = 1000;
-    uint256 public earlyBirdCount;
+    uint256 public earlyBirdCount; // Tracks actual early bird badges minted (KYC users only)
+    uint256 public totalRegistrations; // Tracks total user registrations
     string public baseTokenURI;
 
     // Events
     event BadgeEarned(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier);
     event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier);
+    event KycStatusUpdated(address indexed user, bool kycStatus, bool earlyBirdAwarded);
     event Initialized(address admin, uint256 timestamp);
     // event MetadataUpdate(uint256 tokenId); // ERC-4906 compliant
 
@@ -105,7 +108,7 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         _;
     }
 
-        constructor(address _admin) ERC721("LearnWay Badges", "LWB")  {
+    constructor(address _admin) ERC721("LearnWay Badges", "LWB")  {
         adminContract = ILearnWayAdmin(_admin);
         _initializeBadges();
     }
@@ -202,7 +205,6 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
             badges[i] = Badge({
                 name: names[i],
                 category: categories[i],
-                // emoji: emojis[i],
                 isDynamic: isDynamic[i],
                 maxSupply: maxSupplies[i],
                 currentSupply: 0
@@ -210,21 +212,95 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         }
     }
 
-    // function updateKycStatus(address user, bool kycStatus) external onlyAdminOrManager {
-    //     userStats[user].kycCompleted = kycStatus;
-    //     _updateDynamicBadge(user, 0);
-    // }
-
-    function registerUser(address user, bool kycStatus) external onlyAdminOrManager {
+    /**
+     * @dev Register a new user and award initial badges
+     * Early Bird badge is only awarded to KYC-verified users within the first 1000 registrations
+     */
+    function registerUser(address user, bool kycStatus) external onlyAdminOrManager nonReentrant {
         require(userStats[user].totalBadgesEarned == 0, "User already registered");
 
+        // Increment total registrations counter
+        totalRegistrations++;
+        
+        // Store user's registration order
+        userStats[user].registrationOrder = totalRegistrations;
         userStats[user].kycCompleted = kycStatus;
+        
+        // Award Keyholder badge (badge ID 0)
         _awardBadge(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
 
-        if (earlyBirdCount < MAX_EARLY_BIRD_SPOTS) {
+        // Award Early Bird badge only if:
+        // 1. User is KYC verified
+        // 2. User is within the first MAX_EARLY_BIRD_SPOTS registrations
+        // 3. We haven't exceeded the early bird limit for KYC users
+        if (kycStatus && 
+            userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS && 
+            earlyBirdCount < MAX_EARLY_BIRD_SPOTS) {
             earlyBirdCount++;
             _awardBadge(user, 2, BadgeTier.BRONZE);
         }
+    }
+
+    /**
+     * @dev Update KYC status for existing users
+     * Awards Early Bird badge if user is eligible (registered within first 1000 and KYC completed)
+     */
+    function updateKycStatus(address user, bool kycStatus) external onlyAdminOrManager nonReentrant {
+        require(userStats[user].totalBadgesEarned > 0, "User not registered");
+        require(userStats[user].kycCompleted != kycStatus, "KYC status unchanged");
+        
+        bool earlyBirdAwarded = false;
+        
+        // Update KYC status
+        userStats[user].kycCompleted = kycStatus;
+        
+        // Update Keyholder badge tier based on new KYC status
+        _updateDynamicBadge(user, 0);
+        
+        // Award Early Bird badge if conditions are met
+        if (kycStatus && 
+            !userHasBadge[user][2] && // User doesn't already have Early Bird badge
+            userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS && // Registered within first 1000
+            earlyBirdCount < MAX_EARLY_BIRD_SPOTS) { // Haven't exceeded early bird limit
+            
+            earlyBirdCount++;
+            _awardBadge(user, 2, BadgeTier.BRONZE);
+            earlyBirdAwarded = true;
+        }
+        
+        emit KycStatusUpdated(user, kycStatus, earlyBirdAwarded);
+    }
+
+    /**
+     * @dev Check if a user is eligible for Early Bird badge
+     */
+    function isEligibleForEarlyBird(address user) external view returns (bool) {
+        return userStats[user].kycCompleted && 
+               userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS &&
+               !userHasBadge[user][2] &&
+               earlyBirdCount < MAX_EARLY_BIRD_SPOTS;
+    }
+
+    /**
+     * @dev Get Early Bird eligibility info for a user
+     */
+    function getEarlyBirdInfo(address user) external view returns (
+        uint256 registrationOrder,
+        bool isKycCompleted,
+        bool hasEarlyBirdBadge,
+        bool isEligible,
+        uint256 currentEarlyBirdCount,
+        uint256 maxEarlyBirdSpots
+    ) {
+        registrationOrder = userStats[user].registrationOrder;
+        isKycCompleted = userStats[user].kycCompleted;
+        hasEarlyBirdBadge = userHasBadge[user][2];
+        isEligible = isKycCompleted && 
+                    registrationOrder <= MAX_EARLY_BIRD_SPOTS &&
+                    !hasEarlyBirdBadge &&
+                    earlyBirdCount < MAX_EARLY_BIRD_SPOTS;
+        currentEarlyBirdCount = earlyBirdCount;
+        maxEarlyBirdSpots = MAX_EARLY_BIRD_SPOTS;
     }
 
     function updateUserStats(address user, uint256 statType, uint256[] calldata values) external onlyAdminOrManager {
@@ -585,11 +661,6 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
     function updateAdminContract(address newAdmin) external onlyAdmin {
         adminContract = ILearnWayAdmin(newAdmin);
     }
-
-    // Remove setTokenURI since _setTokenURI is not available in ERC721
-    // function setTokenURI(uint256 tokenId, string calldata uri) external onlyAdmin {
-    //     _setTokenURI(tokenId, uri);
-    // }
 
     // Required overrides
     function supportsInterface(bytes4 interfaceId)
