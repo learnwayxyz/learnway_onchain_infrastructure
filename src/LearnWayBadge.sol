@@ -106,10 +106,11 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
         require(adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender), "Not Authorized Manager");
         _;
     }
+
     modifier onlyPausableAndAdmin() {
         require(
-            adminContract.isAuthorized(keccak256("PAUSER_ROLE"), msg.sender) ||
-            adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender),
+            adminContract.isAuthorized(keccak256("PAUSER_ROLE"), msg.sender)
+                || adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender),
             "Not authorized Admin or Pauser"
         );
         _;
