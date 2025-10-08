@@ -671,8 +671,6 @@ contract GemsContract is Initializable, ReentrancyGuardUpgradeable, PausableUpgr
         testMode = _testMode;
     }
 
-  
-
     /**
      * @dev Optimized balance check with caching
      * @param user Address to check

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interface/ILearnWayAdmin.sol";
@@ -12,7 +11,7 @@ import "./Errors.sol";
  * @dev Smart contract for managing Experience Points (XPs) in the LearnWay application
  * XPs are earned for correct answers and lost for incorrect ones, affecting leaderboard positions
  */
-contract XPContract is  ReentrancyGuard, Pausable {
+contract XPContract is ReentrancyGuard, Pausable {
     // Events
     event XPAwarded(address indexed user, uint256 amount, string reason);
     event XPDeducted(address indexed user, uint256 amount, string reason);
@@ -20,8 +19,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
     event ContestParticipation(address indexed user, uint256 xpEarned, string contestType);
     event BattleResult(address indexed user, uint256 xpChange, string battleType, bool isWin);
     event LeaderboardUpdated(address indexed user, uint256 newXP, uint256 newRank);
+
     ILearnWayAdmin public adminContract;
- 
 
     modifier onlyAdminOrManager() {
         if (!adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)) revert UnauthorizedAdminOrManager();
@@ -77,7 +76,7 @@ contract XPContract is  ReentrancyGuard, Pausable {
         _;
     }
 
-    constructor(address _admin)  {
+    constructor(address _admin) {
         adminContract = ILearnWayAdmin(_admin);
     }
 
@@ -109,7 +108,13 @@ contract XPContract is  ReentrancyGuard, Pausable {
      * @param user Address of the user
      * @param isCorrect Whether the answer was correct
      */
-    function recordQuizAnswer(address user, bool isCorrect) external onlyAdminOrManager nonReentrant validAddress(user) whenNotPaused {
+    function recordQuizAnswer(address user, bool isCorrect)
+        external
+        onlyAdminOrManager
+        nonReentrant
+        validAddress(user)
+        whenNotPaused
+    {
         require(_isRegistered[user], "User not registered");
 
         UserStats storage stats = _userStats[user];
@@ -142,7 +147,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
      */
     function recordContestParticipation(address user, string memory contestId, uint256 xpEarned)
         external
-        onlyAdminOrManager nonReentrant
+        onlyAdminOrManager
+        nonReentrant
         validAddress(user)
         whenNotPaused
     {
@@ -174,7 +180,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
      */
     function recordBattleResult(address user, string memory battleType, bool isWin, uint256 customXP)
         external
-        onlyAdminOrManager nonReentrant
+        onlyAdminOrManager
+        nonReentrant
         validAddress(user)
         whenNotPaused
     {
@@ -217,7 +224,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
      */
     function awardXP(address user, uint256 amount, string memory reason)
         external
-        onlyAdminOrManager nonReentrant
+        onlyAdminOrManager
+        nonReentrant
         validAddress(user)
         whenNotPaused
     {
@@ -239,7 +247,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
      */
     function deductXP(address user, uint256 amount, string memory reason)
         external
-        onlyAdminOrManager nonReentrant
+        onlyAdminOrManager
+        nonReentrant
         validAddress(user)
         whenNotPaused
     {
@@ -423,14 +432,14 @@ contract XPContract is  ReentrancyGuard, Pausable {
     /**
      * @dev Emergency function to pause the contract
      */
-    function pause() external onlyAdminOrManager  {
+    function pause() external onlyAdminOrManager {
         _pause();
     }
 
     /**
      * @dev Emergency function to unpause the contract
      */
-    function unpause() external onlyAdminOrManager  {
+    function unpause() external onlyAdminOrManager {
         _unpause();
     }
 
@@ -442,7 +451,8 @@ contract XPContract is  ReentrancyGuard, Pausable {
      */
     function batchUpdateXP(address[] memory users, int256[] memory amounts, string memory reason)
         external
-        onlyAdminOrManager nonReentrant
+        onlyAdminOrManager
+        nonReentrant
         whenNotPaused
     {
         require(users.length == amounts.length, "Arrays length mismatch");

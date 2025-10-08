@@ -11,14 +11,19 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title LearnWayBadge
- * @dev Upgradeable NFT contract for LearnWay badges with dynamic on-chain metadata
- * Integrates with central LearnWayAdmin for access control
+ * @dev Simplified NFT contract for LearnWay badges with admin-controlled minting
+ * All badges are non-transferable (soulbound) and metadata is stored on-chain
  */
-contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
+contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
     using Strings for uint256;
 
     ILearnWayAdmin public adminContract;
-    uint16 private _tokenIdCounter = 1;
+    uint256 private _tokenIdCounter = 1;
+
+    // Configurable early bird limit
+    uint256 public maxEarlyBirdSpots = 1000;
+    uint256 public earlyBirdCount;
+    uint256 public totalRegistrations;
 
     // Badge Categories
     enum BadgeCategory {
@@ -31,7 +36,7 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         ULTIMATE
     }
 
-    // Badge Tier for dynamic badges
+    // Badge Tier
     enum BadgeTier {
         BRONZE,
         SILVER,
@@ -45,76 +50,78 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         string name;
         BadgeCategory category;
         bool isDynamic;
-        uint16 maxSupply;
+        uint256 maxSupply;
         uint256 currentSupply;
     }
 
-    // Dynamic badge attributes stored on-chain
+    // Badge attributes stored on-chain
     struct BadgeAttributes {
+        uint256 badgeId;
         BadgeTier tier;
-        uint256 progress;
-        uint256 maxProgress;
-        string status;
+        uint256 mintedAt;
         uint256 lastUpdated;
+        string status; // Dynamic status based on badge type and tier
     }
 
-    // User stats for badge calculations
-    struct UserStats {
-        uint256 totalQuizzes;
-        uint256 correctAnswers;
-        uint256 currentLevel;
-        uint256 dailyStreak;
-        uint256 contestsWon;
-        uint256 battlesWon;
-        uint256 gemsCollected;
-        uint256 transactionsCompleted;
-        uint256 depositsCompleted;
-        uint256 sharesCompleted;
-        uint256 referrals;
-        bool kycCompleted;
-        bool hasFirstDeposit;
-        bool attendedEvent;
+    // User information
+    struct UserInfo {
+        bool isRegistered;
+        bool kycVerified;
+        uint256 registrationOrder;
         uint256 totalBadgesEarned;
-        uint256 registrationOrder; // Track registration order for early bird eligibility
     }
 
     // Mappings
     mapping(uint256 => Badge) public badges;
-    mapping(address => UserStats) public userStats;
+    mapping(address => UserInfo) public userInfo;
     mapping(address => mapping(uint256 => bool)) public userHasBadge;
     mapping(address => mapping(uint256 => uint256)) public userBadgeTokenId;
     mapping(uint256 => BadgeAttributes) public tokenAttributes;
     mapping(address => uint256[]) public userBadgeList;
+    mapping(uint256 => address) public tokenToOwner;
 
-    uint16 public constant MAX_EARLY_BIRD_SPOTS = 1000;
-    uint256 public earlyBirdCount; // Tracks actual early bird badges minted (KYC users only)
-    uint256 public totalRegistrations; // Tracks total user registrations
     string public baseTokenURI;
 
-    // Events
-    event BadgeEarned(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier);
-    event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier);
-    event KycStatusUpdated(address indexed user, bool kycStatus, bool earlyBirdAwarded);
-    event Initialized(address admin, uint256 timestamp);
-    // event MetadataUpdate(uint256 tokenId); // ERC-4906 compliant
+    // Events with action and status
+    event BadgeMinted(
+        address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier, string action, bool status
+    );
+
+    event BadgeUpgraded(
+        address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier, string action, bool status
+    );
+
+    event UserRegistered(address indexed user, uint256 registrationOrder, bool kycStatus, string action, bool status);
+
+    event KycStatusUpdated(address indexed user, bool kycStatus, string action, bool status);
+
+    event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, string action, bool status);
 
     modifier onlyAdmin() {
-        if (!adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender)) revert UnauthorizedAdmin();
+        require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
     }
 
-    modifier onlyAdminOrManager() {
-        if (!adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)) revert UnauthorizedAdminOrManager();
+    modifier onlyManager() {
+        require(adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender), "Not Authorized Manager");
+        _;
+    }
+    modifier onlyPausableAndAdmin() {
+        require(
+            adminContract.isAuthorized(keccak256("PAUSER_ROLE"), msg.sender) ||
+            adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender),
+            "Not authorized Admin or Pauser"
+        );
         _;
     }
 
-    constructor(address _admin) ERC721("LearnWay Badges", "LWB")  {
+    constructor(address _admin) ERC721("LearnWay Badges", "LWB") {
         adminContract = ILearnWayAdmin(_admin);
         _initializeBadges();
     }
 
     /**
-     * @dev Initialize all 24 badge types efficiently
+     * @dev Initialize all 24 badge types
      */
     function _initializeBadges() internal {
         string[24] memory names = [
@@ -172,34 +179,58 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         ];
 
         bool[24] memory isDynamic = [
-            true,
-            false,
-            false, // Onboarding
-            true,
-            true,
-            true,
-            true,
-            true, // Quiz
-            true,
-            false,
-            false,
-            true, // Streaks
-            false,
-            false,
-            false, // Battles
-            false,
-            true,
-            true,
-            true, // Skill
-            false,
-            true,
-            false, // Community
-            false,
-            false // Ultimate
+            true, // Keyholder - tier depends on KYC
+            false, // First Spark
+            false, // Early Bird
+            true, // Quiz Explorer
+            true, // Master of Levels
+            true, // Quiz Titan
+            true, // BRAINIAC
+            true, // Legend
+            true, // Daily Claims
+            false, // Routine Master
+            false, // Quiz Devotee
+            true, // Elite
+            false, // Duel Champion
+            false, // Squad Slayer
+            false, // Crown Holder
+            false, // Rising Star
+            true, // DeFi Voyager
+            true, // Savings Champion
+            true, // Power Elite
+            false, // Community Connector
+            true, // Echo Spreader
+            false, // Event Star
+            false, // Grandmaster
+            false // Hall of Famer
         ];
 
-        uint16[24] memory maxSupplies =
-            [0, 0, MAX_EARLY_BIRD_SPOTS, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+        uint8[24] memory maxSupplies = [
+            0, // Keyholder - unlimited
+            0, // First Spark - unlimited
+            0, // Early Bird - will use maxEarlyBirdSpots dynamically
+            0, // Quiz Explorer - unlimited
+            0, // Master of Levels - unlimited
+            0, // Quiz Titan - unlimited
+            0, // BRAINIAC - unlimited
+            0, // Legend - unlimited
+            0, // Daily Claims - unlimited
+            0, // Routine Master - unlimited
+            0, // Quiz Devotee - unlimited
+            0, // Elite - unlimited
+            0, // Duel Champion - unlimited
+            0, // Squad Slayer - unlimited
+            0, // Crown Holder - unlimited
+            0, // Rising Star - unlimited
+            0, // DeFi Voyager - unlimited
+            0, // Savings Champion - unlimited
+            0, // Power Elite - unlimited
+            0, // Community Connector - unlimited
+            0, // Echo Spreader - unlimited
+            0, // Event Star - unlimited
+            1, // Grandmaster - limited to 1
+            1 // Hall of Famer - limited to 1
+        ];
 
         for (uint256 i = 0; i < 24; i++) {
             badges[i] = Badge({
@@ -213,145 +244,77 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Register a new user and award initial badges
-     * Early Bird badge is only awarded to KYC-verified users within the first 1000 registrations
+     * @dev Register a new user - automatically mints Keyholder badge
+     * @param user Address of the user to register
+     * @param kycStatus KYC verification status
      */
-    function registerUser(address user, bool kycStatus) external onlyAdminOrManager nonReentrant {
-        require(userStats[user].totalBadgesEarned == 0, "User already registered");
+    function registerUser(address user, bool kycStatus) external onlyManager nonReentrant {
+        require(!userInfo[user].isRegistered, "User already registered");
 
-        // Increment total registrations counter
+        // Register user
         totalRegistrations++;
-        
-        // Store user's registration order
-        userStats[user].registrationOrder = totalRegistrations;
-        userStats[user].kycCompleted = kycStatus;
-        
-        // Award Keyholder badge (badge ID 0)
-        _awardBadge(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
+        userInfo[user] = UserInfo({
+            isRegistered: true,
+            kycVerified: kycStatus,
+            registrationOrder: totalRegistrations,
+            totalBadgesEarned: 0
+        });
 
-        // Award Early Bird badge only if:
-        // 1. User is KYC verified
-        // 2. User is within the first MAX_EARLY_BIRD_SPOTS registrations
-        // 3. We haven't exceeded the early bird limit for KYC users
-        if (kycStatus && 
-            userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS && 
-            earlyBirdCount < MAX_EARLY_BIRD_SPOTS) {
-            earlyBirdCount++;
-            _awardBadge(user, 2, BadgeTier.BRONZE);
+        emit UserRegistered(user, totalRegistrations, kycStatus, "USER_REGISTERED", true);
+
+        // Automatically mint Keyholder badge (ID 0) with tier based on KYC status
+        BadgeTier keyholderTier = kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER;
+        _mintBadge(user, 0, keyholderTier);
+    }
+
+    /**
+     * @dev Mint a specific badge to a user
+     * @param user Address to mint to
+     * @param badgeId ID of the badge to mint
+     * @param tier Tier of the badge
+     */
+    function mintBadge(address user, uint256 badgeId, BadgeTier tier) external onlyManager nonReentrant {
+        require(userInfo[user].isRegistered, "User not registered");
+        _mintBadge(user, badgeId, tier);
+    }
+
+    /**
+     * @dev Batch mint multiple badges to a user
+     */
+    function batchMintBadges(address user, uint256[] calldata badgeIds, BadgeTier[] calldata tiers)
+        external
+        onlyManager
+        nonReentrant
+    {
+        require(userInfo[user].isRegistered, "User not registered");
+        require(badgeIds.length == tiers.length, "Arrays length mismatch");
+
+        for (uint256 i = 0; i < badgeIds.length; i++) {
+            _mintBadge(user, badgeIds[i], tiers[i]);
         }
     }
 
     /**
-     * @dev Update KYC status for existing users
-     * Awards Early Bird badge if user is eligible (registered within first 1000 and KYC completed)
+     * @dev Internal function to mint badge
      */
-    function updateKycStatus(address user, bool kycStatus) external onlyAdminOrManager nonReentrant {
-        require(userStats[user].totalBadgesEarned > 0, "User not registered");
-        require(userStats[user].kycCompleted != kycStatus, "KYC status unchanged");
-        
-        bool earlyBirdAwarded = false;
-        
-        // Update KYC status
-        userStats[user].kycCompleted = kycStatus;
-        
-        // Update Keyholder badge tier based on new KYC status
-        _updateDynamicBadge(user, 0);
-        
-        // Award Early Bird badge if conditions are met
-        if (kycStatus && 
-            !userHasBadge[user][2] && // User doesn't already have Early Bird badge
-            userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS && // Registered within first 1000
-            earlyBirdCount < MAX_EARLY_BIRD_SPOTS) { // Haven't exceeded early bird limit
-            
-            earlyBirdCount++;
-            _awardBadge(user, 2, BadgeTier.BRONZE);
-            earlyBirdAwarded = true;
-        }
-        
-        emit KycStatusUpdated(user, kycStatus, earlyBirdAwarded);
-    }
-
-    /**
-     * @dev Check if a user is eligible for Early Bird badge
-     */
-    function isEligibleForEarlyBird(address user) external view returns (bool) {
-        return userStats[user].kycCompleted && 
-               userStats[user].registrationOrder <= MAX_EARLY_BIRD_SPOTS &&
-               !userHasBadge[user][2] &&
-               earlyBirdCount < MAX_EARLY_BIRD_SPOTS;
-    }
-
-    /**
-     * @dev Get Early Bird eligibility info for a user
-     */
-    function getEarlyBirdInfo(address user) external view returns (
-        uint256 registrationOrder,
-        bool isKycCompleted,
-        bool hasEarlyBirdBadge,
-        bool isEligible,
-        uint256 currentEarlyBirdCount,
-        uint256 maxEarlyBirdSpots
-    ) {
-        registrationOrder = userStats[user].registrationOrder;
-        isKycCompleted = userStats[user].kycCompleted;
-        hasEarlyBirdBadge = userHasBadge[user][2];
-        isEligible = isKycCompleted && 
-                    registrationOrder <= MAX_EARLY_BIRD_SPOTS &&
-                    !hasEarlyBirdBadge &&
-                    earlyBirdCount < MAX_EARLY_BIRD_SPOTS;
-        currentEarlyBirdCount = earlyBirdCount;
-        maxEarlyBirdSpots = MAX_EARLY_BIRD_SPOTS;
-    }
-
-    function updateUserStats(address user, uint256 statType, uint256[] calldata values) external onlyAdminOrManager {
-        UserStats storage stats = userStats[user];
-        if (values.length == 0) return;
-        if (statType == 0) {
-            // Quiz stats
-            bool isFirstQuiz = stats.totalQuizzes == 0;
-            stats.totalQuizzes += values[0];
-            stats.correctAnswers += values[1];
-            if (values[2] > stats.currentLevel) stats.currentLevel = values[2];
-
-            if (isFirstQuiz) _awardBadge(user, 1, BadgeTier.BRONZE);
-            _checkAndUpdateQuizBadges(user);
-        } else if (statType == 1) {
-            // Streak
-            stats.dailyStreak = values[0];
-            _checkAndUpdateStreakBadges(user);
-        } else if (statType == 2) {
-            // Battle/Contest
-            if (values[0] > 0) stats.battlesWon += values[0];
-            if (values[1] > 0) stats.contestsWon += values[1];
-            _checkBattleBadges(user);
-        } else if (statType == 3) {
-            // Financial
-            if (values[0] > 0 && !stats.hasFirstDeposit) {
-                stats.hasFirstDeposit = true;
-                _awardBadge(user, 15, BadgeTier.BRONZE);
-            }
-            stats.depositsCompleted += values[0];
-            stats.transactionsCompleted += values[1];
-            _checkFinancialBadges(user);
-        } else if (statType == 4) {
-            // Community
-            stats.referrals += values[0];
-            stats.sharesCompleted += values[1];
-            if (values[2] > 0) stats.attendedEvent = true;
-            _checkCommunityBadges(user);
-        } else if (statType == 5) {
-            // Gems
-            stats.gemsCollected += values[0];
-            _updateDynamicBadge(user, 11);
-        }
-    }
-
-    function _awardBadge(address user, uint256 badgeId, BadgeTier tier) internal {
+    function _mintBadge(address user, uint256 badgeId, BadgeTier tier) internal {
         require(badgeId < 24, "Invalid badge ID");
-        require(!userHasBadge[user][badgeId], "Badge already owned");
+        require(!userHasBadge[user][badgeId], "User already has this badge");
 
         Badge storage badge = badges[badgeId];
-        if (badge.maxSupply > 0 && badge.currentSupply >= badge.maxSupply) return;
+
+        // Check max supply
+        if (badge.maxSupply > 0 && badge.currentSupply >= badge.maxSupply) {
+            revert("Badge max supply reached");
+        }
+
+        // Special handling for Early Bird badge (ID 2)
+        if (badgeId == 2) {
+            require(userInfo[user].kycVerified, "Early Bird requires KYC");
+            require(userInfo[user].registrationOrder <= maxEarlyBirdSpots, "Not eligible for Early Bird");
+            require(earlyBirdCount < maxEarlyBirdSpots, "Early Bird limit reached");
+            earlyBirdCount++;
+        }
 
         uint256 tokenId = _tokenIdCounter++;
         _mint(user, tokenId);
@@ -360,157 +323,221 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         userHasBadge[user][badgeId] = true;
         userBadgeTokenId[user][badgeId] = tokenId;
         userBadgeList[user].push(badgeId);
-        userStats[user].totalBadgesEarned++;
+        userInfo[user].totalBadgesEarned++;
+        tokenToOwner[tokenId] = user;
 
-        (uint256 progress, uint256 maxProgress, string memory status) = _getBadgeAttributes(user, badgeId, tier);
+        string memory status = _getBadgeStatus(badgeId, tier);
+
         tokenAttributes[tokenId] = BadgeAttributes({
+            badgeId: badgeId,
             tier: tier,
-            progress: progress,
-            maxProgress: maxProgress,
-            status: status,
-            lastUpdated: block.timestamp
+            mintedAt: block.timestamp,
+            lastUpdated: block.timestamp,
+            status: status
         });
 
-        emit BadgeEarned(user, badgeId, tokenId, tier);
-
-        if (userStats[user].totalBadgesEarned >= 10 && !userHasBadge[user][18]) {
-            _awardBadge(user, 18, BadgeTier.BRONZE);
-        }
+        emit BadgeMinted(user, badgeId, tokenId, tier, "BADGE_MINTED", true);
     }
 
-    function _updateDynamicBadge(address user, uint256 badgeId) internal {
-        if (!userHasBadge[user][badgeId]) {
-            BadgeTier initialTier = _calculateBadgeTier(user, badgeId);
-            if (initialTier != BadgeTier.BRONZE || _shouldAwardBadge(user, badgeId)) {
-                _awardBadge(user, badgeId, initialTier);
-            }
-            return;
-        }
-
-        if (!badges[badgeId].isDynamic) return;
+    /**
+     * @dev Update badge tier for a user's existing badge
+     */
+    function upgradeBadge(address user, uint256 badgeId, BadgeTier newTier) external onlyManager nonReentrant {
+        require(userHasBadge[user][badgeId], "User doesn't have this badge");
+        require(badges[badgeId].isDynamic, "Badge is not upgradeable");
 
         uint256 tokenId = userBadgeTokenId[user][badgeId];
         BadgeAttributes storage attrs = tokenAttributes[tokenId];
-        BadgeTier newTier = _calculateBadgeTier(user, badgeId);
+        require(newTier > attrs.tier, "New tier must be higher");
 
-        if (newTier > attrs.tier) {
+        _updateBadgeTier(user, badgeId, newTier);
+    }
+
+    /**
+     * @dev Internal function to update badge tier
+     */
+    function _updateBadgeTier(address user, uint256 badgeId, BadgeTier newTier) internal {
+        if (!userHasBadge[user][badgeId]) return;
+
+        uint256 tokenId = userBadgeTokenId[user][badgeId];
+        BadgeAttributes storage attrs = tokenAttributes[tokenId];
+
+        if (newTier != attrs.tier) {
             attrs.tier = newTier;
-            (attrs.progress, attrs.maxProgress, attrs.status) = _getBadgeAttributes(user, badgeId, newTier);
             attrs.lastUpdated = block.timestamp;
+            attrs.status = _getBadgeStatus(badgeId, newTier);
 
-            emit BadgeUpgraded(user, badgeId, tokenId, newTier);
-            // emit MetadataUpdate(tokenId);
+            emit BadgeUpgraded(user, badgeId, tokenId, newTier, "BADGE_UPGRADED", true);
         }
     }
 
-    function _calculateBadgeTier(address user, uint256 badgeId) internal view returns (BadgeTier) {
-        UserStats storage stats = userStats[user];
+    /**
+     * @dev Update KYC status for a user and adjust Keyholder badge tier
+     */
+    function updateKycStatus(address user, bool kycStatus) external onlyManager nonReentrant {
+        require(userInfo[user].isRegistered, "User not registered");
+        require(userInfo[user].kycVerified != kycStatus, "KYC status unchanged");
 
-        if (badgeId == 0) return stats.kycCompleted ? BadgeTier.GOLD : BadgeTier.SILVER;
-        if (badgeId == 3) {
-            if (stats.totalQuizzes >= 1000) return BadgeTier.GOLD;
-            if (stats.totalQuizzes >= 500) return BadgeTier.SILVER;
-            return BadgeTier.BRONZE;
-        }
-        if (badgeId == 4) {
-            if (stats.currentLevel >= 100) return BadgeTier.GOLD;
-            if (stats.currentLevel >= 50) return BadgeTier.SILVER;
-            return BadgeTier.BRONZE;
-        }
-        if (badgeId == 5) {
-            if (stats.correctAnswers >= 1000) return BadgeTier.GOLD;
-            if (stats.correctAnswers >= 500) return BadgeTier.SILVER;
-            return BadgeTier.BRONZE;
-        }
-        if (badgeId == 8) {
-            if (stats.dailyStreak >= 180) return BadgeTier.DIAMOND;
-            if (stats.dailyStreak >= 90) return BadgeTier.GOLD;
-            if (stats.dailyStreak >= 30) return BadgeTier.SILVER;
-            return BadgeTier.BRONZE;
-        }
-        if (badgeId == 11) {
-            if (stats.gemsCollected >= 10000) return BadgeTier.DIAMOND;
-            if (stats.gemsCollected >= 5000) return BadgeTier.PLATINUM;
-            if (stats.gemsCollected >= 3000) return BadgeTier.GOLD;
-            return BadgeTier.SILVER;
+        userInfo[user].kycVerified = kycStatus;
+
+        // Update Keyholder badge tier if user has it
+        if (userHasBadge[user][0]) {
+            _updateBadgeTier(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
 
-        return BadgeTier.BRONZE;
+        emit KycStatusUpdated(user, kycStatus, kycStatus ? "KYC_VERIFIED" : "KYC_UNVERIFIED", true);
     }
 
-    function _getBadgeAttributes(address user, uint256 badgeId, BadgeTier tier)
-        internal
-        view
-        returns (uint256 progress, uint256 maxProgress, string memory status)
-    {
-        UserStats storage stats = userStats[user];
+    /**
+     * @dev Set the maximum number of Early Bird badges
+     */
+    function setMaxEarlyBirdSpots(uint256 newLimit) external onlyAdmin {
+        require(newLimit > 0, "Limit must be greater than 0");
+        uint256 oldLimit = maxEarlyBirdSpots;
+        maxEarlyBirdSpots = newLimit;
 
-        if (badgeId == 3) {
-            progress = stats.totalQuizzes;
-            maxProgress = tier == BadgeTier.GOLD ? 1000 : (tier == BadgeTier.SILVER ? 500 : 100);
-            status = tier == BadgeTier.GOLD
-                ? "Master Explorer"
-                : (tier == BadgeTier.SILVER ? "Advanced Explorer" : "Explorer");
+        emit EarlyBirdLimitUpdated(oldLimit, newLimit, "EARLY_BIRD_LIMIT_UPDATED", true);
+    }
+
+    /**
+     * @dev Get badge status based on badge ID and tier
+     */
+    function _getBadgeStatus(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
+        if (badgeId == 0) {
+            // Keyholder
+            return tier == BadgeTier.GOLD ? "Verified Member" : "Basic Member";
+        } else if (badgeId == 3) {
+            // Quiz Explorer
+            if (tier == BadgeTier.DIAMOND) return "Quiz Legend";
+            if (tier == BadgeTier.PLATINUM) return "Quiz Master";
+            if (tier == BadgeTier.GOLD) return "Advanced Explorer";
+            if (tier == BadgeTier.SILVER) return "Explorer";
+            return "Beginner Explorer";
+        } else if (badgeId == 4) {
+            // Master of Levels
+            if (tier == BadgeTier.GOLD) return "Level Master";
+            if (tier == BadgeTier.SILVER) return "Level Expert";
+            return "Level Climber";
         } else if (badgeId == 8) {
-            progress = stats.dailyStreak;
-            maxProgress =
-                tier == BadgeTier.DIAMOND ? 365 : (tier == BadgeTier.GOLD ? 180 : (tier == BadgeTier.SILVER ? 90 : 30));
-            status = tier == BadgeTier.DIAMOND
-                ? "Legendary Streak"
-                : (tier == BadgeTier.GOLD ? "Golden Streak" : "Active Streak");
+            // Daily Claims
+            if (tier == BadgeTier.DIAMOND) return "Legendary Streak";
+            if (tier == BadgeTier.PLATINUM) return "Epic Streak";
+            if (tier == BadgeTier.GOLD) return "Golden Streak";
+            if (tier == BadgeTier.SILVER) return "Silver Streak";
+            return "Active Streak";
         } else if (badgeId == 11) {
-            progress = stats.gemsCollected;
-            maxProgress = tier == BadgeTier.DIAMOND ? 50000 : (tier == BadgeTier.PLATINUM ? 10000 : 5000);
-            status =
-                tier == BadgeTier.DIAMOND ? "Diamond Elite" : (tier == BadgeTier.PLATINUM ? "Platinum Elite" : "Elite");
+            // Elite
+            if (tier == BadgeTier.DIAMOND) return "Diamond Elite";
+            if (tier == BadgeTier.PLATINUM) return "Platinum Elite";
+            if (tier == BadgeTier.GOLD) return "Gold Elite";
+            return "Elite Member";
         } else {
-            progress = 1;
-            maxProgress = 1;
-            status = "Earned";
+            return "Earned";
         }
+    }
+
+    /**
+     * @dev Override _update to make tokens non-transferable (soulbound)
+     */
+    function _update(address to, uint256 tokenId, address auth) internal override whenNotPaused returns (address) {
+        address from = _ownerOf(tokenId);
+
+        // Allow minting and burning, but prevent transfers
+        if (from != address(0) && to != address(0)) {
+            revert("LearnWay badges are non-transferable");
+        }
+
+        return super._update(to, tokenId, auth);
+    }
+
+    /**
+     * @dev Check if a user is eligible for Early Bird badge
+     */
+    function isEligibleForEarlyBird(address user) external view returns (bool) {
+        return userInfo[user].kycVerified && userInfo[user].registrationOrder <= maxEarlyBirdSpots
+            && !userHasBadge[user][2] && earlyBirdCount < maxEarlyBirdSpots;
+    }
+
+    /**
+     * @dev Get detailed Early Bird eligibility info
+     */
+    function getEarlyBirdInfo(address user)
+        external
+        view
+        returns (
+            uint256 registrationOrder,
+            bool isKycCompleted,
+            bool hasEarlyBirdBadge,
+            bool isEligible,
+            uint256 currentEarlyBirdCount,
+            uint256 currentMaxEarlyBirdSpots
+        )
+    {
+        UserInfo memory info = userInfo[user];
+        registrationOrder = info.registrationOrder;
+        isKycCompleted = info.kycVerified;
+        hasEarlyBirdBadge = userHasBadge[user][2];
+        isEligible = isKycCompleted && registrationOrder <= maxEarlyBirdSpots && !hasEarlyBirdBadge
+            && earlyBirdCount < maxEarlyBirdSpots;
+        currentEarlyBirdCount = earlyBirdCount;
+        currentMaxEarlyBirdSpots = maxEarlyBirdSpots;
+    }
+
+    /**
+     * @dev Get user's badge collection
+     */
+    function getUserBadges(address user) external view returns (uint256[] memory) {
+        return userBadgeList[user];
+    }
+
+    /**
+     * @dev Get detailed info about a user's specific badge
+     */
+    function getUserBadgeInfo(address user, uint256 badgeId)
+        external
+        view
+        returns (bool hasBadge, uint256 tokenId, BadgeTier tier, uint256 mintedAt, string memory status)
+    {
+        hasBadge = userHasBadge[user][badgeId];
+        if (hasBadge) {
+            tokenId = userBadgeTokenId[user][badgeId];
+            BadgeAttributes memory attrs = tokenAttributes[tokenId];
+            tier = attrs.tier;
+            mintedAt = attrs.mintedAt;
+            status = attrs.status;
+        }
+    }
+
+    /**
+     * @dev Get token attributes
+     */
+    function getTokenAttributes(uint256 tokenId) external view returns (BadgeAttributes memory) {
+        return tokenAttributes[tokenId];
     }
 
     /**
      * @dev Override tokenURI to return dynamic on-chain metadata
      */
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
-        string memory customURI = ERC721.tokenURI(tokenId);
-
-        // If admin has set a custom URI, use it
-        if (bytes(customURI).length > 0) {
-            return customURI;
-        }
-
-        // Generate dynamic on-chain metadata
-        return _generateMetadata(tokenId);
-    }
-
-    /**
-     * @dev Generate dynamic JSON metadata with attributes
-     */
-    function _generateMetadata(uint256 tokenId) internal view returns (string memory) {
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_ownerOf(tokenId) != address(0), "Token does not exist");
 
-        (uint256 badgeId, address owner) = _findBadgeIdByTokenId(tokenId);
-        Badge storage badge = badges[badgeId];
-        BadgeAttributes storage attrs = tokenAttributes[tokenId];
+        address owner = tokenToOwner[tokenId];
+        BadgeAttributes memory attrs = tokenAttributes[tokenId];
+        Badge memory badge = badges[attrs.badgeId];
+        UserInfo memory user = userInfo[owner];
 
+        // Generate fully on-chain metadata
         string memory json = string(
             abi.encodePacked(
                 '{"name":"',
                 badge.name,
                 '",',
                 '"description":"',
-                _getDescription(badgeId, attrs.tier, attrs.progress),
+                _getBadgeDescription(attrs.badgeId, attrs.tier),
                 '",',
                 '"image":"',
                 baseTokenURI,
-                badgeId.toString(),
+                attrs.badgeId.toString(),
                 "_",
                 uint256(attrs.tier).toString(),
                 '.png",',
@@ -530,42 +557,46 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
                 '{"trait_type":"Status","value":"',
                 attrs.status,
                 '"},',
-                '{"trait_type":"Progress","value":',
-                attrs.progress.toString(),
+                '{"trait_type":"Dynamic","value":"',
+                badge.isDynamic ? "Yes" : "No",
+                '"},',
+                '{"trait_type":"KYC Verified","value":"',
+                user.kycVerified ? "Yes" : "No",
+                '"},',
+                '{"trait_type":"Badge ID","value":',
+                attrs.badgeId.toString(),
                 "},",
-                '{"trait_type":"Max Progress","value":',
-                attrs.maxProgress.toString(),
+                '{"trait_type":"Minted At","value":',
+                attrs.mintedAt.toString(),
                 "},",
                 '{"trait_type":"Last Updated","value":',
                 attrs.lastUpdated.toString(),
-                "},",
-                '{"trait_type":"Badge ID","value":',
-                badgeId.toString(),
-                "}",
-                "]}"
+                "}]}"
             )
         );
 
         return string(abi.encodePacked("data:application/json;base64,", Base64.encode(bytes(json))));
     }
 
-    function _getDescription(uint256 badgeId, BadgeTier tier, uint256 progress) internal pure returns (string memory) {
-        if (badgeId == 0) return tier == BadgeTier.GOLD ? "Verified LearnWay member" : "Basic LearnWay member";
-        if (badgeId == 3) return string(abi.encodePacked("Completed ", progress.toString(), " quizzes"));
-        if (badgeId == 8) return string(abi.encodePacked(progress.toString(), " day streak"));
-        if (badgeId == 11) return string(abi.encodePacked(progress.toString(), " gems collected"));
-        return "LearnWay achievement badge";
-    }
-
-    function _findBadgeIdByTokenId(uint256 tokenId) internal view returns (uint256 badgeId, address owner) {
-        owner = _ownerOf(tokenId);
-        uint256[] storage userBadges = userBadgeList[owner];
-        for (uint256 i = 0; i < userBadges.length; i++) {
-            if (userBadgeTokenId[owner][userBadges[i]] == tokenId) {
-                return (userBadges[i], owner);
-            }
+    /**
+     * @dev Get badge description based on badge ID and tier
+     */
+    function _getBadgeDescription(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
+        if (badgeId == 0) {
+            return tier == BadgeTier.GOLD
+                ? "A verified LearnWay member with full platform access"
+                : "A registered LearnWay member";
+        } else if (badgeId == 1) {
+            return "Completed first quiz on LearnWay platform";
+        } else if (badgeId == 2) {
+            return "One of the first 1000 verified members of LearnWay";
+        } else if (badgeId == 3) {
+            return "Dedicated quiz explorer on LearnWay";
+        } else if (badgeId == 8) {
+            return "Maintaining consistent daily activity";
+        } else {
+            return "LearnWay achievement badge for outstanding performance";
         }
-        revert("Badge not found");
     }
 
     function _getCategoryName(BadgeCategory category) internal pure returns (string memory) {
@@ -586,73 +617,6 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         return "Bronze";
     }
 
-    // Badge checking functions (simplified for gas efficiency)
-    function _shouldAwardBadge(address user, uint256 badgeId) internal view returns (bool) {
-        UserStats storage stats = userStats[user];
-        if (badgeId == 3) return stats.totalQuizzes >= 100;
-        if (badgeId == 4) return stats.currentLevel >= 10;
-        if (badgeId == 5) return stats.correctAnswers >= 100;
-        if (badgeId == 8) return stats.dailyStreak >= 30;
-        if (badgeId == 11) return stats.gemsCollected >= 1000;
-        if (badgeId == 16) return stats.transactionsCompleted >= 3;
-        if (badgeId == 17) return stats.depositsCompleted >= 1;
-        if (badgeId == 20) return stats.sharesCompleted >= 1;
-        return false;
-    }
-
-    function _checkAndUpdateQuizBadges(address user) internal {
-        _updateDynamicBadge(user, 3);
-        _updateDynamicBadge(user, 4);
-        _updateDynamicBadge(user, 5);
-    }
-
-    function _checkAndUpdateStreakBadges(address user) internal {
-        UserStats storage stats = userStats[user];
-        _updateDynamicBadge(user, 8);
-
-        if (stats.dailyStreak >= 30 && !userHasBadge[user][9]) {
-            _awardBadge(user, 9, BadgeTier.BRONZE);
-        }
-        if (stats.dailyStreak >= 60 && !userHasBadge[user][10]) {
-            _awardBadge(user, 10, BadgeTier.BRONZE);
-        }
-    }
-
-    function _checkBattleBadges(address user) internal {
-        UserStats storage stats = userStats[user];
-        if (stats.battlesWon >= 15 && !userHasBadge[user][12]) {
-            _awardBadge(user, 12, BadgeTier.BRONZE);
-        }
-        if (stats.contestsWon >= 3 && !userHasBadge[user][14]) {
-            _awardBadge(user, 14, BadgeTier.BRONZE);
-        }
-    }
-
-    function _checkFinancialBadges(address user) internal {
-        _updateDynamicBadge(user, 16);
-        _updateDynamicBadge(user, 17);
-    }
-
-    function _checkCommunityBadges(address user) internal {
-        UserStats storage stats = userStats[user];
-        if (stats.referrals > 0 && !userHasBadge[user][19]) {
-            _awardBadge(user, 19, BadgeTier.BRONZE);
-        }
-        _updateDynamicBadge(user, 20);
-        if (stats.attendedEvent && !userHasBadge[user][21]) {
-            _awardBadge(user, 21, BadgeTier.BRONZE);
-        }
-    }
-
-    // View functions
-    function getTokenAttributes(uint256 tokenId) external view returns (BadgeAttributes memory) {
-        return tokenAttributes[tokenId];
-    }
-
-    function getUserBadges(address user) external view returns (uint256[] memory) {
-        return userBadgeList[user];
-    }
-
     // Admin functions
     function setBaseTokenURI(string calldata uri) external onlyAdmin {
         baseTokenURI = uri;
@@ -662,13 +626,16 @@ contract LearnWayBadge is  ERC721, ReentrancyGuard, Pausable {
         adminContract = ILearnWayAdmin(newAdmin);
     }
 
+    function pause() external onlyPausableAndAdmin {
+        _pause();
+    }
+
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
+
     // Required overrides
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 

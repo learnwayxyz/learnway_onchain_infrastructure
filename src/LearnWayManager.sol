@@ -34,23 +34,26 @@ interface ILearnWayBadge {
     function updateUserStats(address user, uint256 statType, uint256[] calldata values) external;
     function getUserBadges(address user) external view returns (uint256[] memory);
     function userHasBadge(address user, uint256 badgeId) external view returns (bool);
-    function userStats(address user) external view returns (
-        uint256 totalQuizzes,
-        uint256 correctAnswers,
-        uint256 currentLevel,
-        uint256 dailyStreak,
-        uint256 contestsWon,
-        uint256 battlesWon,
-        uint256 gemsCollected,
-        uint256 transactionsCompleted,
-        uint256 depositsCompleted,
-        uint256 sharesCompleted,
-        uint256 referrals,
-        bool kycCompleted,
-        bool hasFirstDeposit,
-        bool attendedEvent,
-        uint256 totalBadgesEarned
-    );
+    function userStats(address user)
+        external
+        view
+        returns (
+            uint256 totalQuizzes,
+            uint256 correctAnswers,
+            uint256 currentLevel,
+            uint256 dailyStreak,
+            uint256 contestsWon,
+            uint256 battlesWon,
+            uint256 gemsCollected,
+            uint256 transactionsCompleted,
+            uint256 depositsCompleted,
+            uint256 sharesCompleted,
+            uint256 referrals,
+            bool kycCompleted,
+            bool hasFirstDeposit,
+            bool attendedEvent,
+            uint256 totalBadgesEarned
+        );
 }
 
 contract LearnWayManager is ReentrancyGuard, Pausable {
@@ -140,8 +143,12 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     }
 
     modifier contractsSet() {
-        if (address(gemsContract) == address(0) || address(xpContract) == address(0) || address(badgesContract) == address(0))
+        if (
+            address(gemsContract) == address(0) || address(xpContract) == address(0)
+                || address(badgesContract) == address(0)
+        ) {
             revert ContractsNotSet();
+        }
         _;
     }
 
@@ -151,8 +158,10 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     }
 
     modifier onlyAdminOrManager() {
-        if (!adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender) && 
-            !adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)) revert UnauthorizedAdminOrManager();
+        if (
+            !adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender)
+                && !adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)
+        ) revert UnauthorizedAdminOrManager();
         _;
     }
 
@@ -173,7 +182,9 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     }
 
     function setContracts(address _gemsContract, address _xpContract, address _badgesContract) external onlyAdmin {
-        if (_gemsContract == address(0) || _xpContract == address(0) || _badgesContract == address(0)) revert InvalidAddress();
+        if (_gemsContract == address(0) || _xpContract == address(0) || _badgesContract == address(0)) {
+            revert InvalidAddress();
+        }
         gemsContract = IGemsContract(_gemsContract);
         xpContract = IXPContract(_xpContract);
         badgesContract = ILearnWayBadge(_badgesContract);
@@ -191,8 +202,12 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         whenNotPaused
     {
         if (bytes(username).length == 0) revert EmptyUsername();
-        if (address(gemsContract) == address(0) || address(xpContract) == address(0) || address(badgesContract) == address(0)) 
+        if (
+            address(gemsContract) == address(0) || address(xpContract) == address(0)
+                || address(badgesContract) == address(0)
+        ) {
             revert ContractsNotSet();
+        }
 
         if (gemsContract.isRegistered(user)) revert AlreadyRegistered();
 
@@ -223,11 +238,12 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
        QUIZ FLOW
        ========================= */
 
-    function completeQuiz(
-        address user,
-        uint256 score,
-        bool[] memory correctAnswers
-    ) external onlyAdminOrManager nonReentrant validAddress(user)  whenNotPaused
+    function completeQuiz(address user, uint256 score, bool[] memory correctAnswers)
+        external
+        onlyAdminOrManager
+        nonReentrant
+        validAddress(user)
+        whenNotPaused
     {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
         if (score > 100) revert InvalidAddress();
@@ -276,13 +292,13 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
        CONTEST FLOW
        ========================= */
 
-    function completeContest(
-        address user,
-        string memory contestId,
-        uint256 gemsEarned,
-        uint256 xpEarned,
-        bool isWin
-    ) external onlyAdminOrManager nonReentrant validAddress(user) contractsSet whenNotPaused
+    function completeContest(address user, string memory contestId, uint256 gemsEarned, uint256 xpEarned, bool isWin)
+        external
+        onlyAdminOrManager
+        nonReentrant
+        validAddress(user)
+        contractsSet
+        whenNotPaused
     {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
 
@@ -322,13 +338,13 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
        BATTLE FLOW
        ========================= */
 
-    function completeBattle(
-        address user,
-        string memory battleType,
-        bool isWin,
-        uint256 gemsEarned,
-        uint256 customXP
-    ) external onlyAdminOrManager nonReentrant validAddress(user) contractsSet whenNotPaused
+    function completeBattle(address user, string memory battleType, bool isWin, uint256 gemsEarned, uint256 customXP)
+        external
+        onlyAdminOrManager
+        nonReentrant
+        validAddress(user)
+        contractsSet
+        whenNotPaused
     {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
 
@@ -368,7 +384,10 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
        ========================= */
 
     function distributeMonthlyRewards(uint256 month, uint256 year, address[] memory topUsers)
-        external onlyAdmin nonReentrant whenNotPaused
+        external
+        onlyAdmin
+        nonReentrant
+        whenNotPaused
     {
         if (!(month >= 1 && month <= 12)) revert InvalidMonth();
         if (topUsers.length > 3) revert InvalidArrayLength();
@@ -382,7 +401,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             if (!gemsContract.isRegistered(u)) revert NotRegistered();
 
             gemsContract.awardMonthlyLeaderboardReward(u, i + 1);
-            
+
             // Store reward amounts for event
             if (i == 0) rewards[i] = 1000;
             else if (i == 1) rewards[i] = 500;
@@ -400,7 +419,11 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
        ========================= */
 
     function updateUserProfile(address user, string memory username, string memory profileImageHash)
-        external onlyAdminOrManager nonReentrant validAddress(user) whenNotPaused
+        external
+        onlyAdminOrManager
+        nonReentrant
+        validAddress(user)
+        whenNotPaused
     {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
         UserProfile storage profile = _userProfiles[user];
@@ -411,11 +434,11 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         emit UserProfileUpdated(user, string(abi.encodePacked(username, ",", profileImageHash)));
     }
 
-    // function updateUserKYCStatus(address user, bool kycStatus) 
+    // function updateUserKYCStatus(address user, bool kycStatus)
     //     external onlyAdmin validAddress(user) contractsSet whenNotPaused
     // {
     //     if (!gemsContract.isRegistered(user)) revert NotRegistered();
-        
+
     //     // This would require a new function in the badge contract to update KYC status
     //     // For now, we can track it here and update through stats
     //     uint256[] memory values = new uint256[](0); // Empty array to trigger KYC update
@@ -423,7 +446,10 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     // }
 
     function updateReferralCount(address user, uint256 referralCount)
-        external onlyAdminOrManager validAddress(user)  whenNotPaused
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        whenNotPaused
     {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
 
@@ -435,11 +461,17 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         badgesContract.updateUserStats(user, 4, values);
     }
 
-    function updateGemsCollected(address user) external onlyAdminOrManager validAddress(user) contractsSet whenNotPaused {
+    function updateGemsCollected(address user)
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        contractsSet
+        whenNotPaused
+    {
         if (!gemsContract.isRegistered(user)) revert NotRegistered();
-        
+
         uint256 userGems = gemsContract.balanceOf(user);
-        
+
         // Update badge stats - statType 5 = gems
         uint256[] memory values = new uint256[](1);
         values[0] = userGems;
@@ -466,7 +498,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         gemsBalance = address(gemsContract) != address(0) ? gemsContract.balanceOf(user) : 0;
         xpBalance = address(xpContract) != address(0) ? xpContract.getXP(user) : 0;
         userRank = address(xpContract) != address(0) ? xpContract.getUserRank(user) : 0;
-        
+
         if (address(badgesContract) != address(0)) {
             badgesList = badgesContract.getUserBadges(user);
             (,,,,,,,,,,,,,, totalBadgesEarned) = badgesContract.userStats(user);
@@ -547,7 +579,9 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         _addAchievement("quiz_master", "Quiz Master", "Complete 50 quizzes", 500, 50, "quizzes");
         _addAchievement("quiz_legend", "Quiz Legend", "Complete 200 quizzes", 1000, 200, "quizzes");
 
-        _addAchievement("contest_participant", "Contest Participant", "Participate in your first contest", 150, 1, "contests");
+        _addAchievement(
+            "contest_participant", "Contest Participant", "Participate in your first contest", 150, 1, "contests"
+        );
         _addAchievement("contest_veteran", "Contest Veteran", "Participate in 25 contests", 750, 25, "contests");
 
         _addAchievement("first_battle", "First Battle", "Participate in your first battle", 200, 1, "battles");

@@ -18,7 +18,6 @@ contract LearnWayAdmin is
     // Role-based access control
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -37,7 +36,6 @@ contract LearnWayAdmin is
         _grantRole(ADMIN_ROLE, msg.sender);
         _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
         _setRoleAdmin(MANAGER_ROLE, ADMIN_ROLE);
-        _setRoleAdmin(MODERATOR_ROLE, ADMIN_ROLE);
         _setRoleAdmin(EMERGENCY_ROLE, ADMIN_ROLE);
         _setRoleAdmin(PAUSER_ROLE, ADMIN_ROLE);
     }
@@ -62,10 +60,6 @@ contract LearnWayAdmin is
         renounceRole(MANAGER_ROLE, msg.sender);
     }
 
-    function renounceModeratorRole() external {
-        renounceRole(MODERATOR_ROLE, msg.sender);
-    }
-
     function renounceEmergencyRole() external {
         renounceRole(EMERGENCY_ROLE, msg.sender);
     }
@@ -77,12 +71,6 @@ contract LearnWayAdmin is
     function checkAdmin() external view {
         if (!hasRole(ADMIN_ROLE, msg.sender)) {
             revert UnauthorizedAdmin();
-        }
-    }
-
-    function checkModerator() external view {
-        if (!hasRole(MODERATOR_ROLE, msg.sender)) {
-            revert UnauthorizedModerator();
         }
     }
 
@@ -109,5 +97,10 @@ contract LearnWayAdmin is
             return true;
         }
         return false;
+    }
+
+    function setUpRole(bytes32 role, address account) external {
+        _checkAdmin();
+        _grantRole(role, account);
     }
 }
