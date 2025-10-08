@@ -83,19 +83,15 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
     string public baseTokenURI;
 
     // Events with action and status
-    event BadgeMinted(
-        address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier, string action, bool status
-    );
+    event BadgeMinted(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier, bool status);
 
-    event BadgeUpgraded(
-        address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier, string action, bool status
-    );
+    event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier, bool status);
 
-    event UserRegistered(address indexed user, uint256 registrationOrder, bool kycStatus, string action, bool status);
+    event UserRegistered(address indexed user, uint256 registrationOrder, bool kycStatus, bool status);
 
-    event KycStatusUpdated(address indexed user, bool kycStatus, string action, bool status);
+    event KycStatusUpdated(address indexed user, bool kycStatus, bool status);
 
-    event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, string action, bool status);
+    event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, bool status);
 
     modifier onlyAdmin() {
         require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
@@ -261,7 +257,7 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
             totalBadgesEarned: 0
         });
 
-        emit UserRegistered(user, totalRegistrations, kycStatus, "USER_REGISTERED", true);
+        emit UserRegistered(user, totalRegistrations, kycStatus, true);
 
         // Automatically mint Keyholder badge (ID 0) with tier based on KYC status
         BadgeTier keyholderTier = kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER;
@@ -337,7 +333,7 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
             status: status
         });
 
-        emit BadgeMinted(user, badgeId, tokenId, tier, "BADGE_MINTED", true);
+        emit BadgeMinted(user, badgeId, tokenId, tier, true);
     }
 
     /**
@@ -368,7 +364,7 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
             attrs.lastUpdated = block.timestamp;
             attrs.status = _getBadgeStatus(badgeId, newTier);
 
-            emit BadgeUpgraded(user, badgeId, tokenId, newTier, "BADGE_UPGRADED", true);
+            emit BadgeUpgraded(user, badgeId, tokenId, newTier, true);
         }
     }
 
@@ -386,7 +382,7 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
             _updateBadgeTier(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
 
-        emit KycStatusUpdated(user, kycStatus, kycStatus ? "KYC_VERIFIED" : "KYC_UNVERIFIED", true);
+        emit KycStatusUpdated(user, kycStatus, true);
     }
 
     /**
@@ -397,7 +393,7 @@ contract LearnWayBadge is ERC721, ReentrancyGuard, Pausable {
         uint256 oldLimit = maxEarlyBirdSpots;
         maxEarlyBirdSpots = newLimit;
 
-        emit EarlyBirdLimitUpdated(oldLimit, newLimit, "EARLY_BIRD_LIMIT_UPDATED", true);
+        emit EarlyBirdLimitUpdated(oldLimit, newLimit, true);
     }
 
     /**
