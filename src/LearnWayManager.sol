@@ -1,15 +1,54 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interface/ILearnWayAdmin.sol";
 import "./Errors.sol";
 
-// Updated interfaces matching the new simplified contracts
+// Updated interface for LearnwayXPGemsContract (without lessons, with transactions)
 interface ILearnwayXPGemsContract {
+    enum TransactionType {
+        Lesson,
+        Quiz,
+        RegisterUser,
+        KYCVerified,
+        Battle,
+        Contest,
+        Transfer,
+        Deposit
+    }
+
+    struct Transaction {
+        address walletAddress;
+        uint256 gems;
+        uint256 xp;
+        uint256[] badgesList;
+        TransactionType txType;
+        uint256 timestamp;
+        string description;
+    }
+
     function registerUser(address user, uint256 gems) external;
     function updateUserGemsXpAndStreak(address user, uint256 newGems, uint256 newXp, uint256 newStreak) external;
+    function recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] calldata badgesList,
+        TransactionType txType,
+        string calldata description
+    ) external;
+    function batchRecordTransactions(
+        address user,
+        uint256[] calldata gemsAmounts,
+        uint256[] calldata xpAmounts,
+        uint256[][] calldata badgesLists,
+        TransactionType[] calldata txTypes,
+        string[] calldata descriptions
+    ) external;
     function gemsOf(address user) external view returns (uint256);
     function xpOf(address user) external view returns (uint256);
     function streakOf(address user) external view returns (uint256);
@@ -25,6 +64,11 @@ interface ILearnwayXPGemsContract {
             uint256 createdAt,
             uint256 lastUpdated
         );
+    function getUserTransactions(address user) external view returns (Transaction[] memory);
+    function getUserTransaction(address user, uint256 index) external view returns (Transaction memory);
+    function getUserTransactionsByType(address user, TransactionType txType) external view returns (Transaction[] memory);
+    function getUserRecentTransactions(address user, uint256 count) external view returns (Transaction[] memory);
+    function transactionCount(address user) external view returns (uint256);
     function totalRegisteredUsers() external view returns (uint256);
 }
 
@@ -53,7 +97,6 @@ interface ILearnWayBadge {
             uint256 currentMaxEarlyBirdSpots
         );
 
-    // Access to userInfo struct
     struct UserInfo {
         bool isRegistered;
         bool kycVerified;
@@ -72,12 +115,18 @@ interface ILearnWayBadge {
     }
 }
 
-contract LearnWayManager is ReentrancyGuard, Pausable {
+contract LearnWayManager is 
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable 
+{
     /* =========================
        EVENTS
        ========================= */
     event UserRegistered(address indexed user, uint256 initialGems, bool kycStatus, uint256 timestamp);
     event UserDataUpdated(address indexed user, uint256 gems, uint256 xp, uint256 streak, uint256 timestamp);
+    event TransactionRecorded(address indexed user, uint256 gems, uint256 xp, ILearnwayXPGemsContract.TransactionType txType, uint256 timestamp);
     event BadgeMinted(address indexed user, uint256 badgeId, uint256 timestamp);
     event BadgeUpgraded(address indexed user, uint256 badgeId, uint256 timestamp);
     event KycStatusUpdated(address indexed user, bool kycStatus, uint256 timestamp);
@@ -118,13 +167,22 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         _;
     }
 
-    /* =========================
-       CONSTRUCTOR
-       ========================= */
-    constructor(address _adminContract) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _adminContract) public initializer {
         require(_adminContract != address(0), "Invalid admin contract address");
+        
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        
         adminContract = ILearnWayAdmin(_adminContract);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /* =========================
        ADMIN / SETTERS
@@ -178,6 +236,95 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     }
 
     /* =========================
+       TRANSACTION MANAGEMENT
+       ========================= */
+
+    /**
+     * @dev Record a transaction for a user
+     */
+    function recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] calldata badgesList,
+        ILearnwayXPGemsContract.TransactionType txType,
+        string calldata description
+    )
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        gemsContract.recordTransaction(user, gems, xp, badgesList, txType, description);
+        emit TransactionRecorded(user, gems, xp, txType, block.timestamp);
+    }
+
+    /**
+     * @dev Batch record transactions for a user
+     */
+    function batchRecordTransactions(
+        address user,
+        uint256[] calldata gemsAmounts,
+        uint256[] calldata xpAmounts,
+        uint256[][] calldata badgesLists,
+        ILearnwayXPGemsContract.TransactionType[] calldata txTypes,
+        string[] calldata descriptions
+    )
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        gemsContract.batchRecordTransactions(user, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
+        
+        for (uint256 i = 0; i < gemsAmounts.length; i++) {
+            emit TransactionRecorded(user, gemsAmounts[i], xpAmounts[i], txTypes[i], block.timestamp);
+        }
+    }
+
+    function batchRecordTransactionsForUsers(
+        address[] calldata users,
+        uint256[][] calldata gemsAmounts,
+        uint256[][] calldata xpAmounts,
+        uint256[][][] calldata badgesLists,
+        ILearnwayXPGemsContract.TransactionType[][] calldata txTypes,
+        string[][] calldata descriptions
+    )
+        external
+        onlyAdminOrManager
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        require(users.length <= 100, "Batch size too large");
+        require(users.length == gemsAmounts.length, "Array length mismatch");
+        
+        for (uint256 i = 0; i < users.length; i++) {
+            if (!gemsContract.isRegistered(users[i])) continue;
+            
+            gemsContract.batchRecordTransactions(
+                users[i],
+                gemsAmounts[i],
+                xpAmounts[i],
+                badgesLists[i],
+                txTypes[i],
+                descriptions[i]
+            );
+            
+            for (uint256 j = 0; j < gemsAmounts[i].length; j++) {
+                emit TransactionRecorded(users[i], gemsAmounts[i][j], xpAmounts[i][j], txTypes[i][j], block.timestamp);
+            }
+        }
+    }
+    
+
+    /* =========================
        BADGE MANAGEMENT
        ========================= */
 
@@ -201,18 +348,11 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
         badgesContract.batchMintBadges(user, badgeIds, tiers);
 
-        // Emit events for each badge minted
         for (uint256 i = 0; i < badgeIds.length; i++) {
             emit BadgeMinted(user, badgeIds[i], block.timestamp);
         }
     }
 
-    /**
-     * @dev Batch mint multiple badges for multiple users
-     * @param users Array of user addresses (max 100)
-     * @param badgeIds Array of badge IDs to mint for each user
-     * @param tiers Array of badge tiers for each user
-     */
     function batchMintBadgesForMultipleUsers(
         address[] calldata users,
         uint256[][] calldata badgeIds,
@@ -225,19 +365,14 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            // Skip unregistered users
             if (!gemsContract.isRegistered(user)) continue;
 
-            // Ensure badgeIds and tiers arrays match for this user
             require(badgeIds[i].length == tiers[i].length, "Badge arrays length mismatch for user");
 
-            // Skip if no badges to mint for this user
             if (badgeIds[i].length == 0) continue;
 
-            // Mint badges for this user
             badgesContract.batchMintBadges(user, badgeIds[i], tiers[i]);
 
-            // Emit events for each badge minted for this user
             for (uint256 j = 0; j < badgeIds[i].length; j++) {
                 emit BadgeMinted(user, badgeIds[i][j], block.timestamp);
             }
@@ -288,9 +423,8 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (gemsContract.isRegistered(user)) continue; // Skip already registered users
+            if (gemsContract.isRegistered(user)) continue;
 
-            // Register in both contracts
             gemsContract.registerUser(user, initialGems[i]);
             badgesContract.registerUser(user, kycStatuses[i]);
         }
@@ -312,7 +446,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue; // Skip unregistered users
+            if (!gemsContract.isRegistered(user)) continue;
 
             gemsContract.updateUserGemsXpAndStreak(user, newGems[i], newXp[i], newStreaks[i]);
             emit UserDataUpdated(user, newGems[i], newXp[i], newStreaks[i], block.timestamp);
@@ -331,7 +465,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue; // Skip unregistered users
+            if (!gemsContract.isRegistered(user)) continue;
 
             badgesContract.mintBadge(user, badgeIds[i], tiers[i]);
             emit BadgeMinted(user, badgeIds[i], block.timestamp);
@@ -352,7 +486,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue; // Skip unregistered users
+            if (!gemsContract.isRegistered(user)) continue;
 
             badgesContract.updateKycStatus(user, kycStatuses[i]);
             emit KycStatusUpdated(user, kycStatuses[i], block.timestamp);
@@ -373,6 +507,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
             uint256 createdAt,
             uint256 lastUpdated,
             uint256[] memory badgesList,
+            uint256 transactionCount,
             bool kycCompleted,
             uint256 totalBadgesEarned,
             uint256 registrationOrder
@@ -380,6 +515,7 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     {
         if (address(gemsContract) != address(0)) {
             (gems, xp, longestStreak,, createdAt, lastUpdated) = gemsContract.getUserInfo(user);
+            transactionCount = gemsContract.transactionCount(user);
         }
 
         if (address(badgesContract) != address(0)) {
@@ -454,6 +590,36 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
         return address(gemsContract) != address(0) ? gemsContract.streakOf(user) : 0;
     }
 
+    // Transaction view functions
+    function getUserTransactions(address user) external view returns (ILearnwayXPGemsContract.Transaction[] memory) {
+        return address(gemsContract) != address(0) ? gemsContract.getUserTransactions(user) : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserTransaction(address user, uint256 index) external view returns (ILearnwayXPGemsContract.Transaction memory) {
+        require(address(gemsContract) != address(0), "Gems contract not set");
+        return gemsContract.getUserTransaction(user, index);
+    }
+
+    function getUserTransactionsByType(address user, ILearnwayXPGemsContract.TransactionType txType) 
+        external 
+        view 
+        returns (ILearnwayXPGemsContract.Transaction[] memory) 
+    {
+        return address(gemsContract) != address(0) ? gemsContract.getUserTransactionsByType(user, txType) : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserRecentTransactions(address user, uint256 count) 
+        external 
+        view 
+        returns (ILearnwayXPGemsContract.Transaction[] memory) 
+    {
+        return address(gemsContract) != address(0) ? gemsContract.getUserRecentTransactions(user, count) : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserTransactionCount(address user) external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.transactionCount(user) : 0;
+    }
+
     function getUserBadges(address user) external view returns (uint256[] memory) {
         return address(badgesContract) != address(0) ? badgesContract.getUserBadges(user) : new uint256[](0);
     }
@@ -511,5 +677,9 @@ contract LearnWayManager is ReentrancyGuard, Pausable {
     function updateAdminContract(address newAdminContract) external onlyAdmin {
         require(newAdminContract != address(0), "Invalid admin contract address");
         adminContract = ILearnWayAdmin(newAdminContract);
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
     }
 }

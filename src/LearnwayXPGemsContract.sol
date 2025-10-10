@@ -1,49 +1,90 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interface/ILearnWayAdmin.sol";
 import "./Errors.sol";
 
 /**
  * @title LearnwayXPGemsContract
- * @dev Ultra-simplified smart contract for managing LearnWay XpGems contract
+ * @dev Upgradeable smart contract for managing LearnWay XP, Gems, and Transactions
  * Admin has complete control - all operations override existing data, no calculations
  */
-contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
+contract LearnwayXPGemsContract is 
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable 
+{
+    // Transaction Types
+    enum TransactionType {
+        Lesson,
+        Quiz,
+        RegisterUser,
+        KYCVerified,
+        Battle,
+        Contest,
+        Transfer,
+        Deposit
+    }
+
     // User data structure
     struct UserData {
         address user;
         uint256 gems;
-        uint256 xp; // Experience points
-        uint256 longestStreak; // Longest streak achieved by user
-        uint256 createdAt; // Block timestamp when user was registered
-        uint256 lastUpdated; // Block timestamp of last update
+        uint256 xp;
+        uint256 longestStreak;
+        uint256 createdAt;
+        uint256 lastUpdated;
     }
 
-    // Events with status
+    // Transaction structure
+    struct Transaction {
+        address walletAddress;
+        uint256 gems;
+        uint256 xp;
+        uint256[] badgesList;
+        TransactionType txType;
+        uint256 timestamp;
+        string description;
+    }
+
+    // Events
     event UserRegistered(address indexed user, uint256 gems, uint256 xp, uint256 createdAt, bool status);
     event UserAlreadyRegistered(address indexed user, uint256 gems, uint256 xp, uint256 createdAt, bool status);
     event UserGemsUpdated(address indexed user, uint256 oldGems, uint256 newGems, uint256 lastUpdated, bool status);
     event UserXpUpdated(address indexed user, uint256 oldXp, uint256 newXp, uint256 lastUpdated, bool status);
-    event UserStreakUpdated(
-        address indexed user, uint256 oldStreak, uint256 newStreak, uint256 lastUpdated, bool status
+    event UserStreakUpdated(address indexed user, uint256 oldStreak, uint256 newStreak, uint256 lastUpdated, bool status);
+    event TransactionRecorded(
+        address indexed user,
+        uint256 indexed txIndex,
+        TransactionType txType,
+        uint256 gems,
+        uint256 xp,
+        uint256 timestamp
     );
-
-    // Batch operation events
-    event BatchOperationCompleted(
-        string operation, uint256 totalProcessed, uint256 successful, uint256 failed, bool status
-    );
-
-    // LearnWayAdmin contract instance
-    ILearnWayAdmin public immutable learnWayAdmin;
+    event BatchOperationCompleted(string operation, uint256 totalProcessed, uint256 successful, uint256 failed, bool status);
 
     // State variables
+    ILearnWayAdmin public learnWayAdmin;
     mapping(address => UserData) private _userData;
     mapping(address => bool) private _isRegistered;
-
+    mapping(address => Transaction[]) private _userTransactions;
+    mapping(address => uint256) public transactionCount;
     uint256 public totalRegisteredUsers;
+
+    // Global transaction type counters
+    uint256 public totalLessonTransactions;
+    uint256 public totalQuizTransactions;
+    uint256 public totalRegisterUserTransactions;
+    uint256 public totalKYCVerifiedTransactions;
+    uint256 public totalBattleTransactions;
+    uint256 public totalContestTransactions;
+    uint256 public totalTransferTransactions;
+    uint256 public totalDepositTransactions;
 
     // Modifiers
     modifier onlyAdmin() {
@@ -66,15 +107,25 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         _;
     }
 
-    constructor(address _learnWayAdmin) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _learnWayAdmin) public initializer {
         require(_learnWayAdmin != address(0), "Invalid admin contract address");
+        
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        
         learnWayAdmin = ILearnWayAdmin(_learnWayAdmin);
     }
 
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
+
     /**
      * @dev Register a new user with initial gems
-     * @param user Address of the new user
-     * @param gems Initial gems amount to set
      */
     function registerUser(address user, uint256 gems)
         external
@@ -84,30 +135,27 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         whenNotPaused
     {
         require(!_isRegistered[user], "User already registered");
-
         uint256 currentTime = block.timestamp;
 
         _userData[user] = UserData({
             user: user,
             gems: gems,
-            xp: 0, // Default XP is zero
-            longestStreak: 0, // Default streak is zero
+            xp: 0,
+            longestStreak: 0,
             createdAt: currentTime,
             lastUpdated: currentTime
         });
 
         _isRegistered[user] = true;
         totalRegisteredUsers++;
-
         emit UserRegistered(user, gems, 0, currentTime, true);
+
+        // Record registration transaction
+        _recordTransaction(user, gems, 0, new uint256[](0), TransactionType.RegisterUser, "User registration");
     }
 
     /**
      * @dev Update user gems, XP and streak
-     * @param user Address of the user
-     * @param newGems New gems amount (overrides current gems)
-     * @param newXp New XP amount (overrides current XP)
-     * @param newStreak New streak value (only updates if higher)
      */
     function updateUserGemsXpAndStreak(address user, uint256 newGems, uint256 newXp, uint256 newStreak)
         external
@@ -121,7 +169,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         uint256 oldXp = _userData[user].xp;
         uint256 oldStreak = _userData[user].longestStreak;
 
-        // Always update gems and XP
         _userData[user].gems = newGems;
         _userData[user].xp = newXp;
         _userData[user].lastUpdated = block.timestamp;
@@ -129,20 +176,112 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         emit UserGemsUpdated(user, oldGems, newGems, block.timestamp, true);
         emit UserXpUpdated(user, oldXp, newXp, block.timestamp, true);
 
-        // Only update streak if new streak is higher
         if (newStreak > oldStreak) {
             _userData[user].longestStreak = newStreak;
             emit UserStreakUpdated(user, oldStreak, newStreak, block.timestamp, true);
         } else {
-            // Emit event with false status if streak wasn't updated
             emit UserStreakUpdated(user, oldStreak, newStreak, block.timestamp, false);
         }
     }
 
     /**
+     * @dev Record a transaction for a user
+     */
+    function recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] calldata badgesList,
+        TransactionType txType,
+        string calldata description
+    )
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userExists(user)
+        nonReentrant
+        whenNotPaused
+    {
+        _recordTransaction(user, gems, xp, badgesList, txType, description);
+    }
+
+    /**
+     * @dev Internal function to record transaction
+     */
+    function _recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] memory badgesList,
+        TransactionType txType,
+        string memory description
+    ) internal {
+        Transaction memory newTx = Transaction({
+            walletAddress: user,
+            gems: gems,
+            xp: xp,
+            badgesList: badgesList,
+            txType: txType,
+            timestamp: block.timestamp,
+            description: description
+        });
+
+        _userTransactions[user].push(newTx);
+        uint256 txIndex = transactionCount[user];
+        transactionCount[user]++;
+
+        // Increment global counter
+        if (txType == TransactionType.Lesson) totalLessonTransactions++;
+        else if (txType == TransactionType.Quiz) totalQuizTransactions++;
+        else if (txType == TransactionType.RegisterUser) totalRegisterUserTransactions++;
+        else if (txType == TransactionType.KYCVerified) totalKYCVerifiedTransactions++;
+        else if (txType == TransactionType.Battle) totalBattleTransactions++;
+        else if (txType == TransactionType.Contest) totalContestTransactions++;
+        else if (txType == TransactionType.Transfer) totalTransferTransactions++;
+        else if (txType == TransactionType.Deposit) totalDepositTransactions++;
+
+        emit TransactionRecorded(user, txIndex, txType, gems, xp, block.timestamp);
+    }
+
+    /**
+     * @dev Batch record transactions for a user
+     */
+    function batchRecordTransactions(
+        address user,
+        uint256[] calldata gemsAmounts,
+        uint256[] calldata xpAmounts,
+        uint256[][] calldata badgesLists,
+        TransactionType[] calldata txTypes,
+        string[] calldata descriptions
+    )
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userExists(user)
+        nonReentrant
+        whenNotPaused
+    {
+        require(gemsAmounts.length == xpAmounts.length, "Arrays length mismatch");
+        require(gemsAmounts.length == badgesLists.length, "Arrays length mismatch");
+        require(gemsAmounts.length == txTypes.length, "Arrays length mismatch");
+        require(gemsAmounts.length == descriptions.length, "Arrays length mismatch");
+        require(gemsAmounts.length > 0, "Empty arrays");
+        require(gemsAmounts.length <= 100, "Batch size too large");
+
+        for (uint256 i = 0; i < gemsAmounts.length; i++) {
+            _recordTransaction(
+                user,
+                gemsAmounts[i],
+                xpAmounts[i],
+                badgesLists[i],
+                txTypes[i],
+                descriptions[i]
+            );
+        }
+    }
+
+    /**
      * @dev Batch register multiple users
-     * @param users Array of user addresses
-     * @param gemsAmounts Array of gems amounts
      */
     function batchRegisterUsers(address[] calldata users, uint256[] calldata gemsAmounts)
         external
@@ -161,7 +300,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
 
-            // Check for invalid conditions and handle gracefully
             if (user == address(0)) {
                 emit UserRegistered(user, gemsAmounts[i], 0, currentTime, false);
                 failed++;
@@ -174,12 +312,11 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
                 continue;
             }
 
-            // Successful registration
             _userData[user] = UserData({
                 user: user,
                 gems: gemsAmounts[i],
-                xp: 0, // Default XP is zero
-                longestStreak: 0, // Default streak is zero
+                xp: 0,
+                longestStreak: 0,
                 createdAt: currentTime,
                 lastUpdated: currentTime
             });
@@ -189,19 +326,17 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
             successful++;
 
             emit UserRegistered(user, gemsAmounts[i], 0, currentTime, true);
+
+            // Record registration transaction
+            _recordTransaction(user, gemsAmounts[i], 0, new uint256[](0), TransactionType.RegisterUser, "User registration");
         }
 
-        // Emit batch completion event
         bool batchStatus = failed == 0;
         emit BatchOperationCompleted("batchRegisterUsers", users.length, successful, failed, batchStatus);
     }
 
     /**
      * @dev Batch update gems, XP and streaks for multiple users
-     * @param users Array of user addresses
-     * @param newGemsAmounts Array of new gems amounts
-     * @param newXpAmounts Array of new XP amounts
-     * @param newStreaks Array of new streak values
      */
     function batchUpdateGemsXpAndStreaks(
         address[] calldata users,
@@ -222,7 +357,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
 
-            // Check for invalid conditions and handle gracefully
             if (user == address(0)) {
                 emit UserGemsUpdated(user, 0, newGemsAmounts[i], currentTime, false);
                 emit UserXpUpdated(user, 0, newXpAmounts[i], currentTime, false);
@@ -239,12 +373,10 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
                 continue;
             }
 
-            // Successful update
             uint256 oldGems = _userData[user].gems;
             uint256 oldXp = _userData[user].xp;
             uint256 oldStreak = _userData[user].longestStreak;
 
-            // Always update gems and XP
             _userData[user].gems = newGemsAmounts[i];
             _userData[user].xp = newXpAmounts[i];
             _userData[user].lastUpdated = currentTime;
@@ -253,96 +385,48 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
             emit UserGemsUpdated(user, oldGems, newGemsAmounts[i], currentTime, true);
             emit UserXpUpdated(user, oldXp, newXpAmounts[i], currentTime, true);
 
-            // Only update streak if new streak is higher
             if (newStreaks[i] > oldStreak) {
                 _userData[user].longestStreak = newStreaks[i];
                 emit UserStreakUpdated(user, oldStreak, newStreaks[i], currentTime, true);
             } else {
-                // Emit event with false status if streak wasn't updated
                 emit UserStreakUpdated(user, oldStreak, newStreaks[i], currentTime, false);
             }
         }
 
-        // Emit batch completion event
         bool batchStatus = failed == 0;
         emit BatchOperationCompleted("batchUpdateGemsXpAndStreaks", users.length, successful, failed, batchStatus);
     }
 
     // ===== VIEW FUNCTIONS =====
 
-    /**
-     * @dev Get gems amount of a user
-     * @param user Address of the user
-     * @return Gems amount
-     */
     function gemsOf(address user) external view returns (uint256) {
         return _userData[user].gems;
     }
 
-    /**
-     * @dev Get XP amount of a user
-     * @param user Address of the user
-     * @return XP amount
-     */
     function xpOf(address user) external view returns (uint256) {
         return _userData[user].xp;
     }
 
-    /**
-     * @dev Get longest streak of a user
-     * @param user Address of the user
-     * @return Longest streak
-     */
     function streakOf(address user) external view returns (uint256) {
         return _userData[user].longestStreak;
     }
 
-    /**
-     * @dev Check if user is registered
-     * @param user Address of the user
-     * @return Registration status
-     */
     function isRegistered(address user) external view returns (bool) {
         return _isRegistered[user];
     }
 
-    /**
-     * @dev Get user's creation timestamp
-     * @param user Address of the user
-     * @return Creation timestamp
-     */
     function getCreatedAt(address user) external view returns (uint256) {
         return _userData[user].createdAt;
     }
 
-    /**
-     * @dev Get user's last update timestamp
-     * @param user Address of the user
-     * @return Last update timestamp
-     */
     function getLastUpdated(address user) external view returns (uint256) {
         return _userData[user].lastUpdated;
     }
 
-    /**
-     * @dev Get complete user data
-     * @param user Address of the user
-     * @return userData Complete UserData struct
-     */
     function getUserData(address user) external view returns (UserData memory userData) {
         return _userData[user];
     }
 
-    /**
-     * @dev Get comprehensive user information
-     * @param user Address of the user
-     * @return gems Current gems amount
-     * @return xp Current XP amount
-     * @return longestStreak Longest streak achieved
-     * @return registered Registration status
-     * @return createdAt Creation timestamp
-     * @return lastUpdated Last update timestamp
-     */
     function getUserInfo(address user)
         external
         view
@@ -360,10 +444,77 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
     }
 
     /**
-     * @dev Get multiple users' gems amounts in one call
-     * @param users Array of user addresses
-     * @return gemsAmounts Array of corresponding gems amounts
+     * @dev Get user's transaction history
      */
+    function getUserTransactions(address user) external view returns (Transaction[] memory) {
+        return _userTransactions[user];
+    }
+
+    /**
+     * @dev Get user's transaction by index
+     */
+    function getUserTransaction(address user, uint256 index) external view returns (Transaction memory) {
+        require(index < _userTransactions[user].length, "Transaction index out of bounds");
+        return _userTransactions[user][index];
+    }
+
+    /**
+     * @dev Get user's transactions by type
+     */
+    function getUserTransactionsByType(address user, TransactionType txType) 
+        external 
+        view 
+        returns (Transaction[] memory) 
+    {
+        Transaction[] memory allTxs = _userTransactions[user];
+        uint256 count = 0;
+        
+        // Count matching transactions
+        for (uint256 i = 0; i < allTxs.length; i++) {
+            if (allTxs[i].txType == txType) {
+                count++;
+            }
+        }
+        
+        // Create result array
+        Transaction[] memory result = new Transaction[](count);
+        uint256 resultIndex = 0;
+        
+        for (uint256 i = 0; i < allTxs.length; i++) {
+            if (allTxs[i].txType == txType) {
+                result[resultIndex] = allTxs[i];
+                resultIndex++;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Get user's recent transactions (last N transactions)
+     */
+    function getUserRecentTransactions(address user, uint256 count) 
+        external 
+        view 
+        returns (Transaction[] memory) 
+    {
+        Transaction[] memory allTxs = _userTransactions[user];
+        uint256 totalTxs = allTxs.length;
+        
+        if (totalTxs == 0) {
+            return new Transaction[](0);
+        }
+        
+        uint256 returnCount = count > totalTxs ? totalTxs : count;
+        Transaction[] memory result = new Transaction[](returnCount);
+        
+        for (uint256 i = 0; i < returnCount; i++) {
+            result[i] = allTxs[totalTxs - returnCount + i];
+        }
+        
+        return result;
+    }
+
     function getMultipleGems(address[] calldata users) external view returns (uint256[] memory gemsAmounts) {
         gemsAmounts = new uint256[](users.length);
         for (uint256 i = 0; i < users.length; i++) {
@@ -371,11 +522,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         }
     }
 
-    /**
-     * @dev Get multiple users' XP amounts in one call
-     * @param users Array of user addresses
-     * @return xpAmounts Array of corresponding XP amounts
-     */
     function getMultipleXp(address[] calldata users) external view returns (uint256[] memory xpAmounts) {
         xpAmounts = new uint256[](users.length);
         for (uint256 i = 0; i < users.length; i++) {
@@ -383,11 +529,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         }
     }
 
-    /**
-     * @dev Get multiple users' longest streaks in one call
-     * @param users Array of user addresses
-     * @return streaks Array of corresponding longest streaks
-     */
     function getMultipleStreaks(address[] calldata users) external view returns (uint256[] memory streaks) {
         streaks = new uint256[](users.length);
         for (uint256 i = 0; i < users.length; i++) {
@@ -395,16 +536,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         }
     }
 
-    /**
-     * @dev Get multiple users' complete information in one call
-     * @param users Array of user addresses
-     * @return gemsAmounts Array of gems amounts
-     * @return xpAmounts Array of XP amounts
-     * @return streaks Array of longest streaks
-     * @return registered Array of registration statuses
-     * @return createdAt Array of creation timestamps
-     * @return lastUpdated Array of last update timestamps
-     */
     function getMultipleUsersInfo(address[] calldata users)
         external
         view
@@ -435,11 +566,6 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         }
     }
 
-    /**
-     * @dev Get multiple users' complete UserData structs
-     * @param users Array of user addresses
-     * @return usersData Array of UserData structs
-     */
     function getMultipleUserData(address[] calldata users) external view returns (UserData[] memory usersData) {
         usersData = new UserData[](users.length);
         for (uint256 i = 0; i < users.length; i++) {
@@ -447,31 +573,52 @@ contract LearnwayXPGemsContract is ReentrancyGuard, Pausable {
         }
     }
 
+    /**
+     * @dev Get all transaction type counts at once
+     */
+    function getAllTransactionTypeCounts() 
+        external 
+        view 
+        returns (
+            uint256 lesson,
+            uint256 quiz,
+            uint256 registerUser,
+            uint256 kycVerified,
+            uint256 battle,
+            uint256 contest,
+            uint256 transfer,
+            uint256 deposit
+        ) 
+    {
+        return (
+            totalLessonTransactions,
+            totalQuizTransactions,
+            totalRegisterUserTransactions,
+            totalKYCVerifiedTransactions,
+            totalBattleTransactions,
+            totalContestTransactions,
+            totalTransferTransactions,
+            totalDepositTransactions
+        );
+    }
+
     // ===== ADMIN FUNCTIONS =====
 
-    /**
-     * @dev Emergency function to pause the contract
-     */
     function pause() external onlyAdmin {
         _pause();
     }
 
-    /**
-     * @dev Emergency function to unpause the contract
-     */
     function unpause() external onlyAdmin {
         _unpause();
     }
 
-    // ===== LEGACY COMPATIBILITY FUNCTIONS =====
-    // These functions maintain compatibility with existing interfaces
+    // ===== LEGACY COMPATIBILITY =====
 
-    /**
-     * @dev Legacy function - alias for gemsOf
-     * @param user Address of the user
-     * @return Gems amount
-     */
     function balanceOf(address user) external view returns (uint256) {
         return _userData[user].gems;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
     }
 }
