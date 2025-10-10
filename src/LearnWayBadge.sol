@@ -16,12 +16,12 @@ import "./interface/ILearnWayAdmin.sol";
  * @dev Upgradeable NFT contract for LearnWay badges with admin-controlled minting
  * All badges are non-transferable (soulbound) and metadata is stored on-chain
  */
-contract LearnWayBadge is 
+contract LearnWayBadge is
     Initializable,
     ERC721Upgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
-    UUPSUpgradeable 
+    UUPSUpgradeable
 {
     using Strings for uint256;
 
@@ -124,16 +124,16 @@ contract LearnWayBadge is
 
     function initialize(address _admin) public initializer {
         require(_admin != address(0), "Invalid admin address");
-        
+
         __ERC721_init("LearnWay Badges", "LWB");
         __ReentrancyGuard_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        
+
         adminContract = ILearnWayAdmin(_admin);
         _tokenIdCounter = 1;
         maxEarlyBirdSpots = 1000;
-        
+
         _initializeBadges();
     }
 
@@ -195,15 +195,33 @@ contract LearnWayBadge is
         ];
 
         bool[24] memory isDynamic = [
-            true, false, false, true, true, true, true, true,
-            true, false, false, true, false, false, false, false,
-            true, true, true, false, true, false, false, false
+            true,
+            false,
+            false,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true,
+            false,
+            true,
+            false,
+            false,
+            false
         ];
 
-        uint8[24] memory maxSupplies = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
-        ];
+        uint8[24] memory maxSupplies = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
 
         for (uint256 i = 0; i < 24; i++) {
             badges[i] = Badge({

@@ -13,12 +13,7 @@ import "./Errors.sol";
  * @dev Upgradeable smart contract for managing LearnWay XP, Gems, and Transactions
  * Admin has complete control - all operations override existing data, no calculations
  */
-contract LearnwayXPGemsContract is 
-    Initializable,
-    ReentrancyGuardUpgradeable,
-    PausableUpgradeable,
-    UUPSUpgradeable 
-{
+contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     // Transaction Types
     enum TransactionType {
         Lesson,
@@ -57,7 +52,9 @@ contract LearnwayXPGemsContract is
     event UserAlreadyRegistered(address indexed user, uint256 gems, uint256 xp, uint256 createdAt, bool status);
     event UserGemsUpdated(address indexed user, uint256 oldGems, uint256 newGems, uint256 lastUpdated, bool status);
     event UserXpUpdated(address indexed user, uint256 oldXp, uint256 newXp, uint256 lastUpdated, bool status);
-    event UserStreakUpdated(address indexed user, uint256 oldStreak, uint256 newStreak, uint256 lastUpdated, bool status);
+    event UserStreakUpdated(
+        address indexed user, uint256 oldStreak, uint256 newStreak, uint256 lastUpdated, bool status
+    );
     event TransactionRecorded(
         address indexed user,
         uint256 indexed txIndex,
@@ -66,7 +63,9 @@ contract LearnwayXPGemsContract is
         uint256 xp,
         uint256 timestamp
     );
-    event BatchOperationCompleted(string operation, uint256 totalProcessed, uint256 successful, uint256 failed, bool status);
+    event BatchOperationCompleted(
+        string operation, uint256 totalProcessed, uint256 successful, uint256 failed, bool status
+    );
 
     // State variables
     ILearnWayAdmin public learnWayAdmin;
@@ -114,11 +113,11 @@ contract LearnwayXPGemsContract is
 
     function initialize(address _learnWayAdmin) public initializer {
         require(_learnWayAdmin != address(0), "Invalid admin contract address");
-        
+
         __ReentrancyGuard_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        
+
         learnWayAdmin = ILearnWayAdmin(_learnWayAdmin);
     }
 
@@ -194,14 +193,7 @@ contract LearnwayXPGemsContract is
         uint256[] calldata badgesList,
         TransactionType txType,
         string calldata description
-    )
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userExists(user)
-        nonReentrant
-        whenNotPaused
-    {
+    ) external onlyAdminOrManager validAddress(user) userExists(user) nonReentrant whenNotPaused {
         _recordTransaction(user, gems, xp, badgesList, txType, description);
     }
 
@@ -253,14 +245,7 @@ contract LearnwayXPGemsContract is
         uint256[][] calldata badgesLists,
         TransactionType[] calldata txTypes,
         string[] calldata descriptions
-    )
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userExists(user)
-        nonReentrant
-        whenNotPaused
-    {
+    ) external onlyAdminOrManager validAddress(user) userExists(user) nonReentrant whenNotPaused {
         require(gemsAmounts.length == xpAmounts.length, "Arrays length mismatch");
         require(gemsAmounts.length == badgesLists.length, "Arrays length mismatch");
         require(gemsAmounts.length == txTypes.length, "Arrays length mismatch");
@@ -269,14 +254,7 @@ contract LearnwayXPGemsContract is
         require(gemsAmounts.length <= 100, "Batch size too large");
 
         for (uint256 i = 0; i < gemsAmounts.length; i++) {
-            _recordTransaction(
-                user,
-                gemsAmounts[i],
-                xpAmounts[i],
-                badgesLists[i],
-                txTypes[i],
-                descriptions[i]
-            );
+            _recordTransaction(user, gemsAmounts[i], xpAmounts[i], badgesLists[i], txTypes[i], descriptions[i]);
         }
     }
 
@@ -328,7 +306,9 @@ contract LearnwayXPGemsContract is
             emit UserRegistered(user, gemsAmounts[i], 0, currentTime, true);
 
             // Record registration transaction
-            _recordTransaction(user, gemsAmounts[i], 0, new uint256[](0), TransactionType.RegisterUser, "User registration");
+            _recordTransaction(
+                user, gemsAmounts[i], 0, new uint256[](0), TransactionType.RegisterUser, "User registration"
+            );
         }
 
         bool batchStatus = failed == 0;
@@ -461,57 +441,53 @@ contract LearnwayXPGemsContract is
     /**
      * @dev Get user's transactions by type
      */
-    function getUserTransactionsByType(address user, TransactionType txType) 
-        external 
-        view 
-        returns (Transaction[] memory) 
+    function getUserTransactionsByType(address user, TransactionType txType)
+        external
+        view
+        returns (Transaction[] memory)
     {
         Transaction[] memory allTxs = _userTransactions[user];
         uint256 count = 0;
-        
+
         // Count matching transactions
         for (uint256 i = 0; i < allTxs.length; i++) {
             if (allTxs[i].txType == txType) {
                 count++;
             }
         }
-        
+
         // Create result array
         Transaction[] memory result = new Transaction[](count);
         uint256 resultIndex = 0;
-        
+
         for (uint256 i = 0; i < allTxs.length; i++) {
             if (allTxs[i].txType == txType) {
                 result[resultIndex] = allTxs[i];
                 resultIndex++;
             }
         }
-        
+
         return result;
     }
 
     /**
      * @dev Get user's recent transactions (last N transactions)
      */
-    function getUserRecentTransactions(address user, uint256 count) 
-        external 
-        view 
-        returns (Transaction[] memory) 
-    {
+    function getUserRecentTransactions(address user, uint256 count) external view returns (Transaction[] memory) {
         Transaction[] memory allTxs = _userTransactions[user];
         uint256 totalTxs = allTxs.length;
-        
+
         if (totalTxs == 0) {
             return new Transaction[](0);
         }
-        
+
         uint256 returnCount = count > totalTxs ? totalTxs : count;
         Transaction[] memory result = new Transaction[](returnCount);
-        
+
         for (uint256 i = 0; i < returnCount; i++) {
             result[i] = allTxs[totalTxs - returnCount + i];
         }
-        
+
         return result;
     }
 
@@ -576,9 +552,9 @@ contract LearnwayXPGemsContract is
     /**
      * @dev Get all transaction type counts at once
      */
-    function getAllTransactionTypeCounts() 
-        external 
-        view 
+    function getAllTransactionTypeCounts()
+        external
+        view
         returns (
             uint256 lesson,
             uint256 quiz,
@@ -588,7 +564,7 @@ contract LearnwayXPGemsContract is
             uint256 contest,
             uint256 transfer,
             uint256 deposit
-        ) 
+        )
     {
         return (
             totalLessonTransactions,

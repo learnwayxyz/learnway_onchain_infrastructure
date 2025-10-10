@@ -13,15 +13,15 @@ contract DeployLearnWay is Script {
     LearnWayAdmin public adminImplementation;
     LearnWayAdmin public admin;
     ERC1967Proxy public adminProxy;
-    
+
     LearnwayXPGemsContract public xpGemsImplementation;
     ERC1967Proxy public xpGemsProxy;
     LearnwayXPGemsContract public xpGemsLesson;
-    
+
     LearnWayBadge public badgeImplementation;
     ERC1967Proxy public badgeProxy;
     LearnWayBadge public badges;
-    
+
     LearnWayManager public managerImplementation;
     ERC1967Proxy public managerProxy;
     LearnWayManager public manager;
@@ -37,10 +37,10 @@ contract DeployLearnWay is Script {
         // Get the deployer's private key from environment
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         console.log("Deploying LearnWay contracts with deployer:", deployer);
         console.log("Deployer balance:", deployer.balance);
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy LearnWayAdmin Implementation
@@ -62,10 +62,7 @@ contract DeployLearnWay is Script {
         console.log("\n3. Deploying LearnwayXPGemsContract as upgradeable...");
         xpGemsImplementation = new LearnwayXPGemsContract();
         console.log("LearnwayXPGemsContract Implementation deployed at:", address(xpGemsImplementation));
-        bytes memory xpGemsInitData = abi.encodeWithSelector(
-            LearnwayXPGemsContract.initialize.selector,
-            adminAddress
-        );
+        bytes memory xpGemsInitData = abi.encodeWithSelector(LearnwayXPGemsContract.initialize.selector, adminAddress);
         xpGemsProxy = new ERC1967Proxy(address(xpGemsImplementation), xpGemsInitData);
         xpGemsLesson = LearnwayXPGemsContract(address(xpGemsProxy));
         xpGemsLessonAddress = address(xpGemsProxy);
@@ -75,10 +72,7 @@ contract DeployLearnWay is Script {
         console.log("\n4. Deploying LearnWayBadge as upgradeable...");
         badgeImplementation = new LearnWayBadge();
         console.log("LearnWayBadge Implementation deployed at:", address(badgeImplementation));
-        bytes memory badgeInitData = abi.encodeWithSelector(
-            LearnWayBadge.initialize.selector,
-            adminAddress
-        );
+        bytes memory badgeInitData = abi.encodeWithSelector(LearnWayBadge.initialize.selector, adminAddress);
         badgeProxy = new ERC1967Proxy(address(badgeImplementation), badgeInitData);
         badges = LearnWayBadge(address(badgeProxy));
         badgesAddress = address(badgeProxy);
@@ -88,10 +82,7 @@ contract DeployLearnWay is Script {
         console.log("\n5. Deploying LearnWayManager as upgradeable...");
         managerImplementation = new LearnWayManager();
         console.log("LearnWayManager Implementation deployed at:", address(managerImplementation));
-        bytes memory managerInitData = abi.encodeWithSelector(
-            LearnWayManager.initialize.selector,
-            adminAddress
-        );
+        bytes memory managerInitData = abi.encodeWithSelector(LearnWayManager.initialize.selector, adminAddress);
         managerProxy = new ERC1967Proxy(address(managerImplementation), managerInitData);
         manager = LearnWayManager(address(managerProxy));
         managerAddress = address(managerProxy);
@@ -99,7 +90,7 @@ contract DeployLearnWay is Script {
 
         // 6. Setup roles and permissions
         console.log("\n6. Setting up roles and permissions...");
-        
+
         // grant all the 3 contracts ADMIN ROLE
         bytes32 ADMIN_ROLE = keccak256("ADMIN_ROLE");
         for (uint256 i = 0; i < 3; i++) {
@@ -120,7 +111,7 @@ contract DeployLearnWay is Script {
 
         // 8. Optional: Set base URI for badges (can be updated later)
         // badges.setBaseTokenURI("https://api.learnway.io/badges/");
-        
+
         vm.stopBroadcast();
 
         // Print deployment summary

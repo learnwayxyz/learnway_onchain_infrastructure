@@ -66,7 +66,10 @@ interface ILearnwayXPGemsContract {
         );
     function getUserTransactions(address user) external view returns (Transaction[] memory);
     function getUserTransaction(address user, uint256 index) external view returns (Transaction memory);
-    function getUserTransactionsByType(address user, TransactionType txType) external view returns (Transaction[] memory);
+    function getUserTransactionsByType(address user, TransactionType txType)
+        external
+        view
+        returns (Transaction[] memory);
     function getUserRecentTransactions(address user, uint256 count) external view returns (Transaction[] memory);
     function transactionCount(address user) external view returns (uint256);
     function totalRegisteredUsers() external view returns (uint256);
@@ -115,18 +118,19 @@ interface ILearnWayBadge {
     }
 }
 
-contract LearnWayManager is 
-    Initializable,
-    ReentrancyGuardUpgradeable,
-    PausableUpgradeable,
-    UUPSUpgradeable 
-{
+contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     /* =========================
        EVENTS
        ========================= */
     event UserRegistered(address indexed user, uint256 initialGems, bool kycStatus, uint256 timestamp);
     event UserDataUpdated(address indexed user, uint256 gems, uint256 xp, uint256 streak, uint256 timestamp);
-    event TransactionRecorded(address indexed user, uint256 gems, uint256 xp, ILearnwayXPGemsContract.TransactionType txType, uint256 timestamp);
+    event TransactionRecorded(
+        address indexed user,
+        uint256 gems,
+        uint256 xp,
+        ILearnwayXPGemsContract.TransactionType txType,
+        uint256 timestamp
+    );
     event BadgeMinted(address indexed user, uint256 badgeId, uint256 timestamp);
     event BadgeUpgraded(address indexed user, uint256 badgeId, uint256 timestamp);
     event KycStatusUpdated(address indexed user, bool kycStatus, uint256 timestamp);
@@ -174,11 +178,11 @@ contract LearnWayManager is
 
     function initialize(address _adminContract) public initializer {
         require(_adminContract != address(0), "Invalid admin contract address");
-        
+
         __ReentrancyGuard_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        
+
         adminContract = ILearnWayAdmin(_adminContract);
     }
 
@@ -249,15 +253,7 @@ contract LearnWayManager is
         uint256[] calldata badgesList,
         ILearnwayXPGemsContract.TransactionType txType,
         string calldata description
-    )
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userRegistered(user)
-        contractsSet
-        nonReentrant
-        whenNotPaused
-    {
+    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
         gemsContract.recordTransaction(user, gems, xp, badgesList, txType, description);
         emit TransactionRecorded(user, gems, xp, txType, block.timestamp);
     }
@@ -272,17 +268,9 @@ contract LearnWayManager is
         uint256[][] calldata badgesLists,
         ILearnwayXPGemsContract.TransactionType[] calldata txTypes,
         string[] calldata descriptions
-    )
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userRegistered(user)
-        contractsSet
-        nonReentrant
-        whenNotPaused
-    {
+    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
         gemsContract.batchRecordTransactions(user, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
-        
+
         for (uint256 i = 0; i < gemsAmounts.length; i++) {
             emit TransactionRecorded(user, gemsAmounts[i], xpAmounts[i], txTypes[i], block.timestamp);
         }
@@ -295,34 +283,22 @@ contract LearnWayManager is
         uint256[][][] calldata badgesLists,
         ILearnwayXPGemsContract.TransactionType[][] calldata txTypes,
         string[][] calldata descriptions
-    )
-        external
-        onlyAdminOrManager
-        contractsSet
-        nonReentrant
-        whenNotPaused
-    {
+    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
         require(users.length <= 100, "Batch size too large");
         require(users.length == gemsAmounts.length, "Array length mismatch");
-        
+
         for (uint256 i = 0; i < users.length; i++) {
             if (!gemsContract.isRegistered(users[i])) continue;
-            
+
             gemsContract.batchRecordTransactions(
-                users[i],
-                gemsAmounts[i],
-                xpAmounts[i],
-                badgesLists[i],
-                txTypes[i],
-                descriptions[i]
+                users[i], gemsAmounts[i], xpAmounts[i], badgesLists[i], txTypes[i], descriptions[i]
             );
-            
+
             for (uint256 j = 0; j < gemsAmounts[i].length; j++) {
                 emit TransactionRecorded(users[i], gemsAmounts[i][j], xpAmounts[i][j], txTypes[i][j], block.timestamp);
             }
         }
     }
-    
 
     /* =========================
        BADGE MANAGEMENT
@@ -592,28 +568,38 @@ contract LearnWayManager is
 
     // Transaction view functions
     function getUserTransactions(address user) external view returns (ILearnwayXPGemsContract.Transaction[] memory) {
-        return address(gemsContract) != address(0) ? gemsContract.getUserTransactions(user) : new ILearnwayXPGemsContract.Transaction[](0);
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserTransactions(user)
+            : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
-    function getUserTransaction(address user, uint256 index) external view returns (ILearnwayXPGemsContract.Transaction memory) {
+    function getUserTransaction(address user, uint256 index)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction memory)
+    {
         require(address(gemsContract) != address(0), "Gems contract not set");
         return gemsContract.getUserTransaction(user, index);
     }
 
-    function getUserTransactionsByType(address user, ILearnwayXPGemsContract.TransactionType txType) 
-        external 
-        view 
-        returns (ILearnwayXPGemsContract.Transaction[] memory) 
+    function getUserTransactionsByType(address user, ILearnwayXPGemsContract.TransactionType txType)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction[] memory)
     {
-        return address(gemsContract) != address(0) ? gemsContract.getUserTransactionsByType(user, txType) : new ILearnwayXPGemsContract.Transaction[](0);
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserTransactionsByType(user, txType)
+            : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
-    function getUserRecentTransactions(address user, uint256 count) 
-        external 
-        view 
-        returns (ILearnwayXPGemsContract.Transaction[] memory) 
+    function getUserRecentTransactions(address user, uint256 count)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction[] memory)
     {
-        return address(gemsContract) != address(0) ? gemsContract.getUserRecentTransactions(user, count) : new ILearnwayXPGemsContract.Transaction[](0);
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserRecentTransactions(user, count)
+            : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
     function getUserTransactionCount(address user) external view returns (uint256) {
