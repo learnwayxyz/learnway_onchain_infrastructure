@@ -568,16 +568,14 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
     /**
      * @dev Get the number of transactions for a specific user and type.
      */
-    function getUserTransactionsCountByType(address user, TransactionType txType)
-        external
-        view
-        returns (uint256)
-    {
+    function getUserTransactionsCountByType(address user, TransactionType txType) external view returns (uint256) {
         Transaction[] storage allTxs = _userTransactions[user];
         uint256 count = 0;
         for (uint256 i = 0; i < allTxs.length; i++) {
             if (allTxs[i].txType == txType) {
-                unchecked { ++count; }
+                unchecked {
+                    ++count;
+                }
             }
         }
         return count;
