@@ -8,3 +8,6 @@ optimizer = true
 via_ir = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+fs_permissions = [
+  { access = "read", path = "./eth-eoa/active_eoa_addresses.json" }
+]

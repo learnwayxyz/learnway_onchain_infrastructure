@@ -69,9 +69,9 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
 
     // State variables
     ILearnWayAdmin public learnWayAdmin;
-    mapping(address => UserData) private _userData;
-    mapping(address => bool) private _isRegistered;
-    mapping(address => Transaction[]) private _userTransactions;
+    mapping(address => UserData) public _userData;
+    mapping(address => bool) public _isRegistered;
+    mapping(address => Transaction[]) public _userTransactions;
     mapping(address => uint256) public transactionCount;
     uint256 public totalRegisteredUsers;
 
@@ -547,6 +547,40 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
         for (uint256 i = 0; i < users.length; i++) {
             usersData[i] = _userData[users[i]];
         }
+    }
+    // ===== NEW: COUNT-BY-TYPE VIEW FUNCTIONS =====
+
+    /**
+     * @dev Get the total number of transactions recorded globally for a given type.
+     */
+    function getTotalTransactionsCountByType(TransactionType txType) external view returns (uint256) {
+        if (txType == TransactionType.Lesson) return totalLessonTransactions;
+        else if (txType == TransactionType.Quiz) return totalQuizTransactions;
+        else if (txType == TransactionType.RegisterUser) return totalRegisterUserTransactions;
+        else if (txType == TransactionType.KYCVerified) return totalKYCVerifiedTransactions;
+        else if (txType == TransactionType.Battle) return totalBattleTransactions;
+        else if (txType == TransactionType.Contest) return totalContestTransactions;
+        else if (txType == TransactionType.Transfer) return totalTransferTransactions;
+        else if (txType == TransactionType.Deposit) return totalDepositTransactions;
+        return 0;
+    }
+
+    /**
+     * @dev Get the number of transactions for a specific user and type.
+     */
+    function getUserTransactionsCountByType(address user, TransactionType txType)
+        external
+        view
+        returns (uint256)
+    {
+        Transaction[] storage allTxs = _userTransactions[user];
+        uint256 count = 0;
+        for (uint256 i = 0; i < allTxs.length; i++) {
+            if (allTxs[i].txType == txType) {
+                unchecked { ++count; }
+            }
+        }
+        return count;
     }
 
     /**
