@@ -75,9 +75,7 @@ contract LearnWayAdmin is
     }
 
     function checkAdminOrManager() external view {
-        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(MANAGER_ROLE, msg.sender)) {
-            revert UnauthorizedAdminOrManager();
-        }
+        require(hasRole(ADMIN_ROLE, msg.sender) || hasRole(MANAGER_ROLE, msg.sender), "UnauthorizedAdminOrManager");
     }
 
     function _checkAdmin() internal view {

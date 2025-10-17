@@ -156,13 +156,14 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         _;
     }
 
-    modifier onlyAdmin() {
-        adminContract.checkAdmin();
+     modifier onlyAdmin() {
+        require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
     }
 
     modifier onlyAdminOrManager() {
-        adminContract.checkAdminOrManager();
+        require(adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)
+            || adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not Authorized Manager");
         _;
     }
 

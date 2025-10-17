@@ -30,7 +30,7 @@ contract LearnWayBadge is
 
     // Configurable early bird limit
     uint256 public maxEarlyBirdSpots;
-    uint256 public earlyBirdCount;
+    uint256 public totalKycCompletions; // NEW: Tracks order of KYC completion
     uint256 public totalRegistrations;
 
     // Badge Categories
@@ -76,6 +76,7 @@ contract LearnWayBadge is
         bool isRegistered;
         bool kycVerified;
         uint256 registrationOrder;
+        uint256 kycOrder; // NEW: Order of KYC completion (0 if not KYC'd)
         uint256 totalBadgesEarned;
     }
 
@@ -94,10 +95,13 @@ contract LearnWayBadge is
     event BadgeMinted(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier, bool status);
     event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier, bool status);
     event UserRegistered(address indexed user, uint256 registrationOrder, bool kycStatus, bool status);
-    event KycStatusUpdated(address indexed user, bool kycStatus, bool status);
+    event KycStatusUpdated(address indexed user, bool kycStatus, uint256 kycOrder, bool status); // UPDATED
     event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, bool status);
 
+    uint256[45] private _gap;
+
     // Modifiers
+
     modifier onlyAdmin() {
         require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
@@ -238,10 +242,18 @@ contract LearnWayBadge is
         require(!userInfo[user].isRegistered, "User already registered");
 
         totalRegistrations++;
+
+        uint256 kycOrder = 0;
+        if (kycStatus) {
+            totalKycCompletions++;
+            kycOrder = totalKycCompletions;
+        }
+
         userInfo[user] = UserInfo({
             isRegistered: true,
             kycVerified: kycStatus,
             registrationOrder: totalRegistrations,
+            kycOrder: kycOrder,
             totalBadgesEarned: 0
         });
 
@@ -279,11 +291,11 @@ contract LearnWayBadge is
             revert("Badge max supply reached");
         }
 
+        // UPDATED: Early Bird logic now based on KYC completion order
         if (badgeId == 2) {
             require(userInfo[user].kycVerified, "Early Bird requires KYC");
-            require(userInfo[user].registrationOrder <= maxEarlyBirdSpots, "Not eligible for Early Bird");
-            require(earlyBirdCount < maxEarlyBirdSpots, "Early Bird limit reached");
-            earlyBirdCount++;
+            require(userInfo[user].kycOrder > 0, "KYC order not set");
+            require(userInfo[user].kycOrder <= maxEarlyBirdSpots, "Not eligible for Early Bird");
         }
 
         uint256 tokenId = _tokenIdCounter++;
@@ -335,17 +347,24 @@ contract LearnWayBadge is
         }
     }
 
+    // UPDATED: Now assigns kycOrder when KYC is completed
     function updateKycStatus(address user, bool kycStatus) external onlyManager nonReentrant {
         require(userInfo[user].isRegistered, "User not registered");
         require(userInfo[user].kycVerified != kycStatus, "KYC status unchanged");
 
         userInfo[user].kycVerified = kycStatus;
 
+        // Assign KYC order when user completes KYC
+        if (kycStatus && userInfo[user].kycOrder == 0) {
+            totalKycCompletions++;
+            userInfo[user].kycOrder = totalKycCompletions;
+        }
+
         if (userHasBadge[user][0]) {
             _updateBadgeTier(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
 
-        emit KycStatusUpdated(user, kycStatus, true);
+        emit KycStatusUpdated(user, kycStatus, userInfo[user].kycOrder, true);
     }
 
     function setMaxEarlyBirdSpots(uint256 newLimit) external onlyAdmin {
@@ -359,6 +378,10 @@ contract LearnWayBadge is
     function _getBadgeStatus(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
         if (badgeId == 0) {
             return tier == BadgeTier.GOLD ? "Verified Member" : "Basic Member";
+        } else if (badgeId == 1) {
+            return "Completed first quiz on LearnWay platform";
+        } else if (badgeId == 2) {
+            return "One of the first 1000 verified members of LearnWay";
         } else if (badgeId == 3) {
             if (tier == BadgeTier.DIAMOND) return "Quiz Legend";
             if (tier == BadgeTier.PLATINUM) return "Quiz Master";
@@ -395,30 +418,33 @@ contract LearnWayBadge is
         return super._update(to, tokenId, auth);
     }
 
+    // UPDATED: Now checks kycOrder instead of registrationOrder
     function isEligibleForEarlyBird(address user) external view returns (bool) {
-        return userInfo[user].kycVerified && userInfo[user].registrationOrder <= maxEarlyBirdSpots
-            && !userHasBadge[user][2] && earlyBirdCount < maxEarlyBirdSpots;
+        return userInfo[user].kycVerified && userInfo[user].kycOrder > 0 && userInfo[user].kycOrder <= maxEarlyBirdSpots
+            && !userHasBadge[user][2];
     }
 
+    // UPDATED: Now returns kycOrder information
     function getEarlyBirdInfo(address user)
         external
         view
         returns (
             uint256 registrationOrder,
+            uint256 kycOrder,
             bool isKycCompleted,
             bool hasEarlyBirdBadge,
             bool isEligible,
-            uint256 currentEarlyBirdCount,
+            uint256 currentTotalKycCompletions,
             uint256 currentMaxEarlyBirdSpots
         )
     {
         UserInfo memory info = userInfo[user];
         registrationOrder = info.registrationOrder;
+        kycOrder = info.kycOrder;
         isKycCompleted = info.kycVerified;
         hasEarlyBirdBadge = userHasBadge[user][2];
-        isEligible = isKycCompleted && registrationOrder <= maxEarlyBirdSpots && !hasEarlyBirdBadge
-            && earlyBirdCount < maxEarlyBirdSpots;
-        currentEarlyBirdCount = earlyBirdCount;
+        isEligible = isKycCompleted && kycOrder > 0 && kycOrder <= maxEarlyBirdSpots && !hasEarlyBirdBadge;
+        currentTotalKycCompletions = totalKycCompletions;
         currentMaxEarlyBirdSpots = maxEarlyBirdSpots;
     }
 

@@ -85,14 +85,15 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
     uint256 public totalTransferTransactions;
     uint256 public totalDepositTransactions;
 
+    uint256[45] private _gap;
     // Modifiers
-    modifier onlyAdmin() {
-        learnWayAdmin.checkAdmin();
+       modifier onlyAdmin() {
+        require(learnWayAdmin.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
     }
 
     modifier onlyAdminOrManager() {
-        learnWayAdmin.checkAdminOrManager();
+        require(learnWayAdmin.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender) || learnWayAdmin.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender), "Not AuthorizedAdminOrManager");
         _;
     }
 
