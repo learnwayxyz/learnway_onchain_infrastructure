@@ -422,7 +422,7 @@ contract LearnWayIntegrationTest is Test {
         LearnwayXPGemsContract.Transaction memory txn = gemsContract.getUserTransaction(user1, 1);
         assertEq(txn.gems, 50);
         assertEq(txn.xp, 100);
-        assertEq(uint256(txn.txType), uint256(LearnwayXPGemsContract.TransactionType.Quiz));
+        assertEq(uint256(txn.txType), uint256(LearnwayXPGemsContract.TransactionType.DailyQuiz));
 
         vm.stopPrank();
     }
@@ -669,5 +669,543 @@ contract LearnWayIntegrationTest is Test {
         assertTrue(bytes(uri).length > 0);
 
         vm.stopPrank();
+    }
+    /* ========================================
+     INTEGRATION TESTS: BATCH RECORD TRANSACTIONS
+     ======================================== */
+
+    function test_Integration_BatchRecordTransactionsForSingleUser() public {
+        vm.startPrank(manager);
+
+        // Register user
+        managerContract.registerUser(user1, 100, true);
+
+        // Prepare batch transaction data
+        uint256[] memory gemsAmounts = new uint256[](3);
+        gemsAmounts[0] = 50;
+        gemsAmounts[1] = 75;
+        gemsAmounts[2] = 100;
+
+        uint256[] memory xpAmounts = new uint256[](3);
+        xpAmounts[0] = 100;
+        xpAmounts[1] = 150;
+        xpAmounts[2] = 200;
+
+        uint256[][] memory badgesLists = new uint256[][](3);
+        badgesLists[0] = new uint256[](0);
+        badgesLists[1] = new uint256[](1);
+        badgesLists[1][0] = 1;
+        badgesLists[2] = new uint256[](0);
+
+        ILearnwayXPGemsContract.TransactionType[] memory txTypes = new ILearnwayXPGemsContract.TransactionType[](3);
+        txTypes[0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[1] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[2] = ILearnwayXPGemsContract.TransactionType.Battle;
+
+        string[] memory descriptions = new string[](3);
+        descriptions[0] = "Quiz 1";
+        descriptions[1] = "Quiz 2";
+        descriptions[2] = "Battle 1";
+
+        // Record batch transactions
+        managerContract.batchRecordTransactions(user1, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
+
+        // Verify transactions were recorded (1 registration + 3 new)
+        assertEq(gemsContract.transactionCount(user1), 4);
+
+        // Verify individual transactions
+        LearnwayXPGemsContract.Transaction memory tx1 = gemsContract.getUserTransaction(user1, 1);
+        assertEq(tx1.gems, 50);
+        assertEq(tx1.xp, 100);
+
+        LearnwayXPGemsContract.Transaction memory tx2 = gemsContract.getUserTransaction(user1, 2);
+        assertEq(tx2.gems, 75);
+        assertEq(tx2.xp, 150);
+        assertEq(tx2.badgesList[0], 1);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchRecordTransactionsForMultipleUsers() public {
+        vm.startPrank(manager);
+
+        // Register users
+        managerContract.registerUser(user1, 100, true);
+        managerContract.registerUser(user2, 100, true);
+
+        // Prepare data for user1
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2;
+
+        uint256[][] memory gemsAmounts = new uint256[][](2);
+        gemsAmounts[0] = new uint256[](2);
+        gemsAmounts[0][0] = 50;
+        gemsAmounts[0][1] = 75;
+        gemsAmounts[1] = new uint256[](2);
+        gemsAmounts[1][0] = 60;
+        gemsAmounts[1][1] = 80;
+
+        uint256[][] memory xpAmounts = new uint256[][](2);
+        xpAmounts[0] = new uint256[](2);
+        xpAmounts[0][0] = 100;
+        xpAmounts[0][1] = 150;
+        xpAmounts[1] = new uint256[](2);
+        xpAmounts[1][0] = 120;
+        xpAmounts[1][1] = 160;
+
+        uint256[][][] memory badgesLists = new uint256[][][](2);
+        badgesLists[0] = new uint256[][](2);
+        badgesLists[0][0] = new uint256[](0);
+        badgesLists[0][1] = new uint256[](0);
+        badgesLists[1] = new uint256[][](2);
+        badgesLists[1][0] = new uint256[](0);
+        badgesLists[1][1] = new uint256[](0);
+
+        ILearnwayXPGemsContract.TransactionType[][] memory txTypes = new ILearnwayXPGemsContract.TransactionType[][](2);
+        txTypes[0] = new ILearnwayXPGemsContract.TransactionType[](2);
+        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[0][1] = ILearnwayXPGemsContract.TransactionType.Battle;
+        txTypes[1] = new ILearnwayXPGemsContract.TransactionType[](2);
+        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[1][1] = ILearnwayXPGemsContract.TransactionType.Contest;
+
+        string[][] memory descriptions = new string[][](2);
+        descriptions[0] = new string[](2);
+        descriptions[0][0] = "User1 Quiz";
+        descriptions[0][1] = "User1 Battle";
+        descriptions[1] = new string[](2);
+        descriptions[1][0] = "User2 Quiz";
+        descriptions[1][1] = "User2 Contest";
+
+        // Execute batch operation
+        managerContract.batchRecordTransactionsForUsers(
+            users, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions
+        );
+
+        // Verify user1 transactions (1 registration + 2 new)
+        assertEq(gemsContract.transactionCount(user1), 3);
+        // Verify user2 transactions (1 registration + 2 new)
+        assertEq(gemsContract.transactionCount(user2), 3);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchRecordTransactions_RevertsOnArrayMismatch() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, true);
+
+        uint256[] memory gemsAmounts = new uint256[](2);
+        uint256[] memory xpAmounts = new uint256[](3); // Mismatched length
+
+        vm.expectRevert("Arrays length mismatch");
+        managerContract.batchRecordTransactions(
+            user1,
+            gemsAmounts,
+            xpAmounts,
+            new uint256[][](2),
+            new ILearnwayXPGemsContract.TransactionType[](2),
+            new string[](2)
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchRecordTransactionsForUsers_SkipsUnregistered() public {
+        vm.startPrank(manager);
+
+        // Register only user1
+        managerContract.registerUser(user1, 100, true);
+
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2; // Not registered
+
+        uint256[][] memory gemsAmounts = new uint256[][](2);
+        gemsAmounts[0] = new uint256[](1);
+        gemsAmounts[0][0] = 50;
+        gemsAmounts[1] = new uint256[](1);
+        gemsAmounts[1][0] = 60;
+
+        uint256[][] memory xpAmounts = new uint256[][](2);
+        xpAmounts[0] = new uint256[](1);
+        xpAmounts[0][0] = 100;
+        xpAmounts[1] = new uint256[](1);
+        xpAmounts[1][0] = 120;
+
+        uint256[][][] memory badgesLists = new uint256[][][](2);
+        badgesLists[0] = new uint256[][](1);
+        badgesLists[0][0] = new uint256[](0);
+        badgesLists[1] = new uint256[][](1);
+        badgesLists[1][0] = new uint256[](0);
+
+        ILearnwayXPGemsContract.TransactionType[][] memory txTypes = new ILearnwayXPGemsContract.TransactionType[][](2);
+        txTypes[0] = new ILearnwayXPGemsContract.TransactionType[](1);
+        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[1] = new ILearnwayXPGemsContract.TransactionType[](1);
+        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+
+        string[][] memory descriptions = new string[][](2);
+        descriptions[0] = new string[](1);
+        descriptions[0][0] = "User1 Quiz";
+        descriptions[1] = new string[](1);
+        descriptions[1][0] = "User2 Quiz";
+
+        // Should not revert, just skip user2
+        managerContract.batchRecordTransactionsForUsers(
+            users, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions
+        );
+
+        // User1 should have transaction
+        assertEq(gemsContract.transactionCount(user1), 2); // 1 registration + 1 new
+        // User2 should not be registered
+        assertFalse(gemsContract.isRegistered(user2));
+
+        vm.stopPrank();
+    }
+
+    /* ========================================
+     INTEGRATION TESTS: BATCH MINT BADGES FOR MULTIPLE USERS
+     ======================================== */
+
+    function test_Integration_BatchMintBadgesForMultipleUsers() public {
+        vm.startPrank(manager);
+
+        // Register users
+        managerContract.registerUser(user1, 100, true);
+        managerContract.registerUser(user2, 100, true);
+        managerContract.registerUser(user3, 100, false);
+
+        address[] memory users = new address[](3);
+        users[0] = user1;
+        users[1] = user2;
+        users[2] = user3;
+
+        uint256[][] memory badgeIds = new uint256[][](3);
+        badgeIds[0] = new uint256[](2);
+        badgeIds[0][0] = 1; // First Spark
+        badgeIds[0][1] = 2; // Early Bird
+
+        badgeIds[1] = new uint256[](1);
+        badgeIds[1][0] = 1; // First Spark
+
+        badgeIds[2] = new uint256[](1);
+        badgeIds[2][0] = 1; // First Spark
+
+        ILearnWayBadge.BadgeTier[][] memory tiers = new ILearnWayBadge.BadgeTier[][](3);
+        tiers[0] = new ILearnWayBadge.BadgeTier[](2);
+        tiers[0][0] = ILearnWayBadge.BadgeTier.BRONZE;
+        tiers[0][1] = ILearnWayBadge.BadgeTier.BRONZE;
+
+        tiers[1] = new ILearnWayBadge.BadgeTier[](1);
+        tiers[1][0] = ILearnWayBadge.BadgeTier.BRONZE;
+
+        tiers[2] = new ILearnWayBadge.BadgeTier[](1);
+        tiers[2][0] = ILearnWayBadge.BadgeTier.BRONZE;
+
+        managerContract.batchMintBadgesForMultipleUsers(users, badgeIds, tiers);
+
+        // Verify user1 badges
+        assertTrue(badgeContract.userHasBadge(user1, 1));
+        assertTrue(badgeContract.userHasBadge(user1, 2));
+
+        // Verify user2 badges
+        assertTrue(badgeContract.userHasBadge(user2, 1));
+
+        // Verify user3 badges
+        assertTrue(badgeContract.userHasBadge(user3, 1));
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchMintBadgesForMultipleUsers_SkipsUnregistered() public {
+        vm.startPrank(manager);
+
+        // Register only user1
+        managerContract.registerUser(user1, 100, true);
+
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2; // Not registered
+
+        uint256[][] memory badgeIds = new uint256[][](2);
+        badgeIds[0] = new uint256[](1);
+        badgeIds[0][0] = 1;
+        badgeIds[1] = new uint256[](1);
+        badgeIds[1][0] = 1;
+
+        ILearnWayBadge.BadgeTier[][] memory tiers = new ILearnWayBadge.BadgeTier[][](2);
+        tiers[0] = new ILearnWayBadge.BadgeTier[](1);
+        tiers[0][0] = ILearnWayBadge.BadgeTier.BRONZE;
+        tiers[1] = new ILearnWayBadge.BadgeTier[](1);
+        tiers[1][0] = ILearnWayBadge.BadgeTier.BRONZE;
+
+        // Should not revert, just skip user2
+        managerContract.batchMintBadgesForMultipleUsers(users, badgeIds, tiers);
+
+        // Verify user1 got badge
+        assertTrue(badgeContract.userHasBadge(user1, 1));
+        // Verify user2 was skipped
+        assertFalse(gemsContract.isRegistered(user2));
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchMintBadgesForMultipleUsers_RevertsOnArrayMismatch() public {
+        vm.startPrank(manager);
+
+        address[] memory users = new address[](2);
+        uint256[][] memory badgeIds = new uint256[][](3); // Mismatched
+        ILearnWayBadge.BadgeTier[][] memory tiers = new ILearnWayBadge.BadgeTier[][](2);
+
+        vm.expectRevert("Array length mismatch");
+        managerContract.batchMintBadgesForMultipleUsers(users, badgeIds, tiers);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchMintBadgesForMultipleUsers_RevertsOnBatchTooLarge() public {
+        vm.startPrank(manager);
+
+        address[] memory users = new address[](101); // Exceeds limit
+        uint256[][] memory badgeIds = new uint256[][](101);
+        ILearnWayBadge.BadgeTier[][] memory tiers = new ILearnWayBadge.BadgeTier[][](101);
+
+        vm.expectRevert("Batch size too large");
+        managerContract.batchMintBadgesForMultipleUsers(users, badgeIds, tiers);
+
+        vm.stopPrank();
+    }
+
+    /* ========================================
+     INTEGRATION TESTS: BATCH UPDATE KYC STATUS
+     ======================================== */
+
+    function test_Integration_BatchUpdateKycStatus() public {
+        vm.startPrank(manager);
+
+        // Register users without KYC
+        managerContract.registerUser(user1, 100, false);
+        managerContract.registerUser(user2, 100, false);
+        managerContract.registerUser(user3, 100, false);
+
+        // Verify initial KYC status - userInfo returns 5 values: (isRegistered, kycVerified, regOrder, kycOrder, totalBadges)
+        (,,, uint256 kycOrder1Before,) = badgeContract.userInfo(user1);
+        assertEq(kycOrder1Before, 0);
+
+        address[] memory users = new address[](3);
+        users[0] = user1;
+        users[1] = user2;
+        users[2] = user3;
+
+        bool[] memory kycStatuses = new bool[](3);
+        kycStatuses[0] = true;
+        kycStatuses[1] = true;
+        kycStatuses[2] = false; // Keep false
+
+        managerContract.batchUpdateKycStatus(users, kycStatuses);
+
+        // Verify KYC orders were assigned
+        (,,, uint256 kycOrder1,) = badgeContract.userInfo(user1);
+        (,,, uint256 kycOrder2,) = badgeContract.userInfo(user2);
+        (,,, uint256 kycOrder3,) = badgeContract.userInfo(user3);
+
+        assertEq(kycOrder1, 1);
+        assertEq(kycOrder2, 2);
+        assertEq(kycOrder3, 0); // Still no KYC
+
+        // Verify Keyholder badges were upgraded
+        (,, LearnWayBadge.BadgeTier tier1,,) = badgeContract.getUserBadgeInfo(user1, 0);
+        (,, LearnWayBadge.BadgeTier tier2,,) = badgeContract.getUserBadgeInfo(user2, 0);
+        (,, LearnWayBadge.BadgeTier tier3,,) = badgeContract.getUserBadgeInfo(user3, 0);
+
+        assertEq(uint256(tier1), uint256(LearnWayBadge.BadgeTier.GOLD));
+        assertEq(uint256(tier2), uint256(LearnWayBadge.BadgeTier.GOLD));
+        assertEq(uint256(tier3), uint256(LearnWayBadge.BadgeTier.SILVER));
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_BatchUpdateKycStatus_SkipsUnregistered() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, false);
+
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2; // Not registered
+
+        bool[] memory kycStatuses = new bool[](2);
+        kycStatuses[0] = true;
+        kycStatuses[1] = true;
+
+        // Should not revert
+        managerContract.batchUpdateKycStatus(users, kycStatuses);
+
+        // User1 should be KYC'd
+        (,,, uint256 kycOrder1,) = badgeContract.userInfo(user1);
+        assertEq(kycOrder1, 1);
+
+        // User2 should not be registered
+        assertFalse(gemsContract.isRegistered(user2));
+
+        vm.stopPrank();
+    }
+
+    /* ========================================
+     INTEGRATION TESTS: VIEW FUNCTIONS
+     ======================================== */
+
+    function test_Integration_GetUserGemsData() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, true);
+        managerContract.updateUserData(user1, 200, 500, 10);
+
+        (uint256 gems, uint256 xp, uint256 longestStreak, bool registered, uint256 createdAt, uint256 lastUpdated) =
+            managerContract.getUserGemsData(user1);
+
+        assertEq(gems, 200);
+        assertEq(xp, 500);
+        assertEq(longestStreak, 10);
+        assertTrue(registered);
+        assertTrue(createdAt > 0);
+        assertTrue(lastUpdated > 0);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_GetUserBadgeData() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, true);
+        managerContract.mintBadgeForUser(user1, 1, ILearnWayBadge.BadgeTier.BRONZE);
+
+        (
+            bool kycCompleted,
+            bool isRegistered,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder,
+            uint256[] memory badgesList
+        ) = managerContract.getUserBadgeData(user1);
+
+        assertTrue(kycCompleted);
+        assertTrue(isRegistered);
+        assertEq(totalBadgesEarned, 2); // Keyholder is auto-minted but counts in totalBadgesEarned
+        assertEq(registrationOrder, 1);
+        assertEq(badgesList.length, 2);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_GetUserTransactionsByType() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, true);
+
+        // Record different transaction types
+        managerContract.recordTransaction(
+            user1, 50, 100, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz 1"
+        );
+
+        managerContract.recordTransaction(
+            user1, 75, 150, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Battle, "Battle 1"
+        );
+
+        managerContract.recordTransaction(
+            user1, 60, 120, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz 2"
+        );
+
+        // Get quiz transactions only
+        ILearnwayXPGemsContract.Transaction[] memory quizTxs =
+            managerContract.getUserTransactionsByType(user1, ILearnwayXPGemsContract.TransactionType.Quiz);
+
+        assertEq(quizTxs.length, 2);
+        assertEq(quizTxs[0].gems, 50);
+        assertEq(quizTxs[1].gems, 60);
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_GetUserRecentTransactions() public {
+        vm.startPrank(manager);
+
+        managerContract.registerUser(user1, 100, true);
+
+        // Record multiple transactions
+        for (uint256 i = 0; i < 5; i++) {
+            managerContract.recordTransaction(
+                user1, 50 + i, 100 + i, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz"
+            );
+        }
+
+        // Get last 3 transactions
+        ILearnwayXPGemsContract.Transaction[] memory recentTxs = managerContract.getUserRecentTransactions(user1, 3);
+
+        assertEq(recentTxs.length, 3);
+        // Should get the most recent ones (gems: 54, 53, 52 in order)
+        assertEq(recentTxs[2].gems, 54); // Most recent
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_GetContractAddresses() public view {
+        (address gemsAddr, address badgesAddr) = managerContract.getContractAddresses();
+
+        assertEq(gemsAddr, address(gemsContract));
+        assertEq(badgesAddr, address(badgeContract));
+    }
+
+    function test_Integration_GetTotalUsers() public {
+        vm.startPrank(manager);
+
+        assertEq(managerContract.getTotalUsers(), 0);
+
+        managerContract.registerUser(user1, 100, true);
+        assertEq(managerContract.getTotalUsers(), 1);
+
+        managerContract.registerUser(user2, 100, true);
+        assertEq(managerContract.getTotalUsers(), 2);
+
+        vm.stopPrank();
+    }
+
+    /* ========================================
+     INTEGRATION TESTS: ADMIN FUNCTIONS
+     ======================================== */
+
+    function test_Integration_UpdateAdminContract() public {
+        vm.startPrank(admin);
+
+        // Deploy new admin contract
+        LearnWayAdmin newAdminImpl = new LearnWayAdmin();
+        ERC1967Proxy newAdminProxy =
+            new ERC1967Proxy(address(newAdminImpl), abi.encodeWithSelector(LearnWayAdmin.initialize.selector));
+        LearnWayAdmin newAdmin = LearnWayAdmin(address(newAdminProxy));
+
+        // Update manager's admin contract
+        managerContract.updateAdminContract(address(newAdmin));
+
+        // Verify update
+        assertEq(address(managerContract.adminContract()), address(newAdmin));
+
+        vm.stopPrank();
+    }
+
+    function test_Integration_UpdateAdminContract_RevertsOnZeroAddress() public {
+        vm.prank(admin);
+        vm.expectRevert("Invalid admin contract address");
+        managerContract.updateAdminContract(address(0));
+    }
+
+    function test_Integration_UpdateAdminContract_OnlyAdmin() public {
+        vm.prank(manager);
+        vm.expectRevert("Not AuthorizedAdmin");
+        managerContract.updateAdminContract(address(0x123));
+    }
+
+    function test_Integration_Version() public view {
+        assertEq(managerContract.version(), "1.0.0");
     }
 }

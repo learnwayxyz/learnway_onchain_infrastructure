@@ -350,7 +350,6 @@ contract LearnWayBadge is
     // UPDATED: Now assigns kycOrder when KYC is completed
     function updateKycStatus(address user, bool kycStatus) external onlyManager nonReentrant {
         require(userInfo[user].isRegistered, "User not registered");
-        require(userInfo[user].kycVerified != kycStatus, "KYC status unchanged");
 
         userInfo[user].kycVerified = kycStatus;
 
@@ -418,7 +417,6 @@ contract LearnWayBadge is
         return super._update(to, tokenId, auth);
     }
 
-    // UPDATED: Now checks kycOrder instead of registrationOrder
     function isEligibleForEarlyBird(address user) external view returns (bool) {
         return userInfo[user].kycVerified && userInfo[user].kycOrder > 0 && userInfo[user].kycOrder <= maxEarlyBirdSpots
             && !userHasBadge[user][2];
@@ -450,6 +448,25 @@ contract LearnWayBadge is
 
     function getUserBadges(address user) external view returns (uint256[] memory) {
         return userBadgeList[user];
+    }
+
+    function getUserBadgeData(address user)
+        external
+        view
+        returns (
+            bool kycCompleted,
+            bool isRegistered,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder,
+            uint256[] memory badgesList
+        )
+    {
+        UserInfo memory info = userInfo[user];
+        kycCompleted = info.kycVerified;
+        isRegistered = info.isRegistered;
+        totalBadgesEarned = info.totalBadgesEarned;
+        registrationOrder = info.registrationOrder;
+        badgesList = userBadgeList[user];
     }
 
     function getUserBadgeInfo(address user, uint256 badgeId)

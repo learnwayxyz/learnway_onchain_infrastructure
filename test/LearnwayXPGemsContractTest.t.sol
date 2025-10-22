@@ -121,7 +121,7 @@ contract LearnwayXPGemsContractMoreTest is Test {
         vm.prank(manager);
         xpg.recordTransaction(user1, 1, 10, new uint256[](0), LearnwayXPGemsContract.TransactionType.Lesson, "L#1");
         vm.prank(manager);
-        xpg.recordTransaction(user1, 2, 20, new uint256[](0), LearnwayXPGemsContract.TransactionType.Quiz, "Q#1");
+        xpg.recordTransaction(user1, 2, 20, new uint256[](0), LearnwayXPGemsContract.TransactionType.DailyQuiz, "Q#1");
         vm.prank(manager);
         xpg.recordTransaction(user1, 3, 30, new uint256[](0), LearnwayXPGemsContract.TransactionType.Lesson, "L#2");
         vm.prank(manager);
@@ -129,7 +129,7 @@ contract LearnwayXPGemsContractMoreTest is Test {
 
         // Per-user counts
         uint256 lessons = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.Lesson);
-        uint256 quiz = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.Quiz);
+        uint256 quiz = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.DailyQuiz);
         uint256 reg = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.RegisterUser);
         uint256 deposit = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.Deposit);
         uint256 kyc = xpg.getUserTransactionsCountByType(user1, LearnwayXPGemsContract.TransactionType.KYCVerified);
@@ -148,7 +148,7 @@ contract LearnwayXPGemsContractMoreTest is Test {
         assertEq(ltx[1].gems, 3);
 
         LearnwayXPGemsContract.Transaction[] memory qtx =
-            xpg.getUserTransactionsByType(user1, LearnwayXPGemsContract.TransactionType.Quiz);
+            xpg.getUserTransactionsByType(user1, LearnwayXPGemsContract.TransactionType.DailyQuiz);
         assertEq(qtx.length, 1);
         assertEq(qtx[0].gems, 2);
 

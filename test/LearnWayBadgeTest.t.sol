@@ -888,7 +888,8 @@ contract LearnWayBadgeTest is Test {
         badge.mintBadge(user3, 2, LearnWayBadge.BadgeTier.GOLD);
         vm.stopPrank();
 
-        assertEq(badge.totalKycCompletions(), 2);
+        assertEq(badge.totalKycCompletions(), 3);
+        assertFalse(badge.userHasBadge(user3, 2));
     }
 
     function test_ComplexScenario_BatchMintWithUpgrades() public {

@@ -367,32 +367,32 @@ struct BadgeAttributes {
 7. **Ultimate**: Elite accomplishment badges
 
 **24 Available Badges**:
-| Badge Name | Category | Dynamic | Special Conditions |
-|------------|----------|---------|-------------------|
-| Keyholder | Onboarding | Yes | KYC affects tier |
-| First Spark | Onboarding | No | First quiz completion |
-| Early Bird | Onboarding | No | First 1000 KYC users |
+| Badge Name | Category | Dynamic | Unlock Condition |
+|------------|----------|---------|------------------|
+| Keyholder | Onboarding | Yes | Account setup (silver) and KYC (gold) |
+| First Spark | Onboarding | No | Play Quiz for the first time |
+| Early Bird | Onboarding | No | Be part of first 1000 to verify KYC |
 | Quiz Explorer | Quiz Completion | Yes | Progressive quizzes |
 | Master of Levels | Quiz Completion | Yes | Level achievements |
 | Quiz Titan | Quiz Completion | Yes | High quiz scores |
 | BRAINIAC | Quiz Completion | Yes | Perfect scores |
 | Legend | Quiz Completion | Yes | Top performer |
-| Daily Claims | Streaks | Yes | Daily login streak |
-| Routine Master | Streaks | No | 30-day streak |
-| Quiz Devotee | Streaks | No | Quiz consistency |
-| Elite | Streaks | Yes | Long-term engagement |
-| Duel Champion | Battles | No | Battle winner |
-| Squad Slayer | Battles | No | Team battles |
-| Crown Holder | Battles | No | Tournament winner |
-| Rising Star | Skill Mastery | No | Rapid progress |
-| DeFi Voyager | Skill Mastery | Yes | DeFi knowledge |
-| Savings Champion | Skill Mastery | Yes | Financial literacy |
-| Power Elite | Skill Mastery | Yes | Multiple masteries |
-| Community Connector | Community | No | Social engagement |
-| Echo Spreader | Community | Yes | Content sharing |
-| Event Star | Community | No | Event participation |
-| Grandmaster | Ultimate | No | Limited to 1 user |
-| Hall of Famer | Ultimate | No | Limited to 1 user |
+| Daily Claims | Streaks | Yes | Claim streaks: 1-30/31-90/91-180 days |
+| Routine Master | Streaks | No | Maintain 30-day streak |
+| Quiz Devotee | Streaks | No | Play daily quizzes for 30 days X2 |
+| Elite | Streaks | Yes | Collect 1000/3000/5000/10k Gems |
+| Duel Champion | Battles | No | Win a 1v1 battle x15 |
+| Squad Slayer | Battles | No | Win a group battle x12 |
+| Crown Holder | Battles | No | Win a contest x3 |
+| Rising Star | Skill Mastery | No | First crypto deposit |
+| DeFi Voyager | Skill Mastery | Yes | Complete 3-10 transactions (send/receive/swap) |
+| Savings Champion | Skill Mastery | Yes | Complete 1-10/11-30/31-50 deposits |
+| Power Elite | Skill Mastery | Yes | Unlock 1-10/11-20 badges |
+| Community Connector | Community | No | Invite a friend |
+| Echo Spreader | Community | Yes | Share app with 1-20/21-50/51-100 people |
+| Event Star | Community | No | Attend or host LearnWay events |
+| Grandmaster | Ultimate | No | Max out all other badges |
+| Hall of Famer | Ultimate | No | Recognized for outstanding contributions |
 
 ### LearnWayManager Contract
 

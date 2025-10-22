@@ -93,11 +93,22 @@ interface ILearnWayBadge {
         view
         returns (
             uint256 registrationOrder,
+            uint256 kycOrder,
             bool isKycCompleted,
             bool hasEarlyBirdBadge,
             bool isEligible,
-            uint256 currentEarlyBirdCount,
+            uint256 currentTotalKycCompletions,
             uint256 currentMaxEarlyBirdSpots
+        );
+    function getUserBadgeData(address user)
+        external
+        view
+        returns (
+            bool kycCompleted,
+            bool isRegistered,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder,
+            uint256[] memory badgesList
         );
 
     struct UserInfo {
@@ -156,14 +167,17 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         _;
     }
 
-     modifier onlyAdmin() {
+    modifier onlyAdmin() {
         require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
     }
 
     modifier onlyAdminOrManager() {
-        require(adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)
-            || adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not Authorized Manager");
+        require(
+            adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)
+                || adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender),
+            "Not Authorized Manager"
+        );
         _;
     }
 
@@ -519,7 +533,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         if (address(gemsContract) != address(0)) {
             return gemsContract.getUserInfo(user);
         }
-        return (0, 0, 0, false, 0, 0);
+        // All return values automatically default to 0/false
     }
 
     function getUserBadgeData(address user)
@@ -534,14 +548,11 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         )
     {
         if (address(badgesContract) != address(0)) {
-            ILearnWayBadge.UserInfo memory userBadgeInfo = badgesContract.userInfo(user);
-            kycCompleted = userBadgeInfo.kycVerified;
-            isRegistered = userBadgeInfo.isRegistered;
-            totalBadgesEarned = userBadgeInfo.totalBadgesEarned;
-            registrationOrder = userBadgeInfo.registrationOrder;
-            badgesList = badgesContract.getUserBadges(user);
+            return badgesContract.getUserBadgeData(user);
+        } else {
+            // Return empty array for badgesList when contract not set
+            badgesList = new uint256[](0);
         }
-        return (false, false, 0, 0, new uint256[](0));
     }
 
     function getUserBadgeInfo(address user, uint256 badgeId)
@@ -552,7 +563,9 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         if (address(badgesContract) != address(0)) {
             return badgesContract.getUserBadgeInfo(user, badgeId);
         }
-        return (false, 0, ILearnWayBadge.BadgeTier.BRONZE, 0, "");
+        // When contract not set, return empty string for status
+        status = "";
+        // Other values automatically default to: false, 0, BRONZE, 0
     }
 
     function getUserGems(address user) external view returns (uint256) {
@@ -628,17 +641,17 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         view
         returns (
             uint256 registrationOrder,
+            uint256 kycOrder,
             bool isKycCompleted,
             bool hasEarlyBirdBadge,
             bool isEligible,
-            uint256 currentEarlyBirdCount,
+            uint256 currentTotalKycCompletions,
             uint256 currentMaxEarlyBirdSpots
         )
     {
         if (address(badgesContract) != address(0)) {
             return badgesContract.getEarlyBirdInfo(user);
         }
-        return (0, false, false, false, 0, 0);
     }
 
     function getTotalUsers() external view returns (uint256) {

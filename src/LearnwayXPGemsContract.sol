@@ -17,7 +17,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
     // Transaction Types
     enum TransactionType {
         Lesson,
-        Quiz,
+        DailyQuiz,
         RegisterUser,
         KYCVerified,
         Battle,
@@ -77,7 +77,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
 
     // Global transaction type counters
     uint256 public totalLessonTransactions;
-    uint256 public totalQuizTransactions;
+    uint256 public totalDailyQuizTransactions;
     uint256 public totalRegisterUserTransactions;
     uint256 public totalKYCVerifiedTransactions;
     uint256 public totalBattleTransactions;
@@ -87,13 +87,18 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
 
     uint256[45] private _gap;
     // Modifiers
-       modifier onlyAdmin() {
+
+    modifier onlyAdmin() {
         require(learnWayAdmin.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
         _;
     }
 
     modifier onlyAdminOrManager() {
-        require(learnWayAdmin.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender) || learnWayAdmin.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender), "Not AuthorizedAdminOrManager");
+        require(
+            learnWayAdmin.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender)
+                || learnWayAdmin.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender),
+            "Not AuthorizedAdminOrManager"
+        );
         _;
     }
 
@@ -225,7 +230,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
 
         // Increment global counter
         if (txType == TransactionType.Lesson) totalLessonTransactions++;
-        else if (txType == TransactionType.Quiz) totalQuizTransactions++;
+        else if (txType == TransactionType.DailyQuiz) totalDailyQuizTransactions++;
         else if (txType == TransactionType.RegisterUser) totalRegisterUserTransactions++;
         else if (txType == TransactionType.KYCVerified) totalKYCVerifiedTransactions++;
         else if (txType == TransactionType.Battle) totalBattleTransactions++;
@@ -556,7 +561,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
      */
     function getTotalTransactionsCountByType(TransactionType txType) external view returns (uint256) {
         if (txType == TransactionType.Lesson) return totalLessonTransactions;
-        else if (txType == TransactionType.Quiz) return totalQuizTransactions;
+        else if (txType == TransactionType.DailyQuiz) return totalDailyQuizTransactions;
         else if (txType == TransactionType.RegisterUser) return totalRegisterUserTransactions;
         else if (txType == TransactionType.KYCVerified) return totalKYCVerifiedTransactions;
         else if (txType == TransactionType.Battle) return totalBattleTransactions;
@@ -590,8 +595,8 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
         view
         returns (
             uint256 lesson,
-            uint256 quiz,
-            uint256 registerUser,
+            uint256 dailyquiz,
+            uint256 registeredUser,
             uint256 kycVerified,
             uint256 battle,
             uint256 contest,
@@ -601,7 +606,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
     {
         return (
             totalLessonTransactions,
-            totalQuizTransactions,
+            totalDailyQuizTransactions,
             totalRegisterUserTransactions,
             totalKYCVerifiedTransactions,
             totalBattleTransactions,
