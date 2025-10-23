@@ -412,7 +412,7 @@ contract LearnWayIntegrationTest is Test {
         badges[0] = 1; // First Spark badge
 
         managerContract.recordTransaction(
-            user1, 50, 100, badges, ILearnwayXPGemsContract.TransactionType.Quiz, "Completed first quiz"
+            user1, 50, 100, badges, ILearnwayXPGemsContract.TransactionType.DailyQuiz, "Completed first quiz"
         );
 
         // Verify transaction was recorded
@@ -698,8 +698,8 @@ contract LearnWayIntegrationTest is Test {
         badgesLists[2] = new uint256[](0);
 
         ILearnwayXPGemsContract.TransactionType[] memory txTypes = new ILearnwayXPGemsContract.TransactionType[](3);
-        txTypes[0] = ILearnwayXPGemsContract.TransactionType.Quiz;
-        txTypes[1] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[0] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
+        txTypes[1] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
         txTypes[2] = ILearnwayXPGemsContract.TransactionType.Battle;
 
         string[] memory descriptions = new string[](3);
@@ -764,10 +764,10 @@ contract LearnWayIntegrationTest is Test {
 
         ILearnwayXPGemsContract.TransactionType[][] memory txTypes = new ILearnwayXPGemsContract.TransactionType[][](2);
         txTypes[0] = new ILearnwayXPGemsContract.TransactionType[](2);
-        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
         txTypes[0][1] = ILearnwayXPGemsContract.TransactionType.Battle;
         txTypes[1] = new ILearnwayXPGemsContract.TransactionType[](2);
-        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
         txTypes[1][1] = ILearnwayXPGemsContract.TransactionType.Contest;
 
         string[][] memory descriptions = new string[][](2);
@@ -842,9 +842,9 @@ contract LearnWayIntegrationTest is Test {
 
         ILearnwayXPGemsContract.TransactionType[][] memory txTypes = new ILearnwayXPGemsContract.TransactionType[][](2);
         txTypes[0] = new ILearnwayXPGemsContract.TransactionType[](1);
-        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[0][0] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
         txTypes[1] = new ILearnwayXPGemsContract.TransactionType[](1);
-        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.Quiz;
+        txTypes[1][0] = ILearnwayXPGemsContract.TransactionType.DailyQuiz;
 
         string[][] memory descriptions = new string[][](2);
         descriptions[0] = new string[](1);
@@ -1106,7 +1106,7 @@ contract LearnWayIntegrationTest is Test {
 
         // Record different transaction types
         managerContract.recordTransaction(
-            user1, 50, 100, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz 1"
+            user1, 50, 100, new uint256[](0), ILearnwayXPGemsContract.TransactionType.DailyQuiz, "Quiz 1"
         );
 
         managerContract.recordTransaction(
@@ -1114,12 +1114,12 @@ contract LearnWayIntegrationTest is Test {
         );
 
         managerContract.recordTransaction(
-            user1, 60, 120, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz 2"
+            user1, 60, 120, new uint256[](0), ILearnwayXPGemsContract.TransactionType.DailyQuiz, "Quiz 2"
         );
 
         // Get quiz transactions only
         ILearnwayXPGemsContract.Transaction[] memory quizTxs =
-            managerContract.getUserTransactionsByType(user1, ILearnwayXPGemsContract.TransactionType.Quiz);
+            managerContract.getUserTransactionsByType(user1, ILearnwayXPGemsContract.TransactionType.DailyQuiz);
 
         assertEq(quizTxs.length, 2);
         assertEq(quizTxs[0].gems, 50);
@@ -1136,7 +1136,7 @@ contract LearnWayIntegrationTest is Test {
         // Record multiple transactions
         for (uint256 i = 0; i < 5; i++) {
             managerContract.recordTransaction(
-                user1, 50 + i, 100 + i, new uint256[](0), ILearnwayXPGemsContract.TransactionType.Quiz, "Quiz"
+                user1, 50 + i, 100 + i, new uint256[](0), ILearnwayXPGemsContract.TransactionType.DailyQuiz, "Quiz"
             );
         }
 

@@ -12,7 +12,7 @@ import "./Errors.sol";
 interface ILearnwayXPGemsContract {
     enum TransactionType {
         Lesson,
-        Quiz,
+        DailyQuiz,
         RegisterUser,
         KYCVerified,
         Battle,

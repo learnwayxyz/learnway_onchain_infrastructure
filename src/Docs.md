@@ -127,7 +127,7 @@ graph TB
 - Records all learning transactions
 - Tracks eight transaction types:
   - Lessons completed
-  - Quizzes taken
+  - DailyQuizzes taken
   - User registrations
   - KYC verifications
   - Battle participations
@@ -484,14 +484,14 @@ manager.batchRegisterUsers(
 
 ```javascript
 // Record quiz completion
-manager.recordTransaction(
-  userAddress,
-  gemsEarned,
-  xpGained,
-  [], // badges earned (if any)
-  TransactionType.Quiz,
-  "Completed Advanced DeFi Quiz"
-);
+manager.batchRecordTransactionsForUsers(
+        address[] calldata users,
+        uint256[][] calldata gemsAmounts,
+        uint256[][] calldata xpAmounts,
+        uint256[][][] calldata badgesLists,
+        ILearnwayXPGemsContract.TransactionType[][] calldata txTypes,
+        string[][] calldata descriptions
+    )
 ```
 
 #### Managing Badges
