@@ -14,7 +14,7 @@ interface ILearnWayAdmin {
 
 contract GrantRoleScript is Script {
     // Deployed proxy contract
-    address public constant proxyAddress = 0xA12354Da41984900685580dE451ec502e06038f9;
+    address public constant proxyAddress = 0x4f02b67CfA5030B7A80974cf605cD416B9f11814;
 
     // Example target accounts (you can modify or extend this list)
     address public constant targetAccount1 = 0xe735e92D7cad4c59BD8A819Ac53d3b77843EF9ca;
