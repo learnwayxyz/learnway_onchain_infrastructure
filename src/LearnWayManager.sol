@@ -1,837 +1,685 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./interface/ILearnWayAdmin.sol";
+import "./Errors.sol";
 
-interface IGemsContract {
-    function registerUser(address user, address referralCode) external;
-    function awardQuizGems(address user, uint256 score) external;
-    function awardContestGems(address user, uint256 amount, string memory contestType) external;
-    function awardMonthlyLeaderboardReward(address user, uint256 position) external;
-    function spendGems(address user, uint256 amount, string memory reason) external;
-    function balanceOf(address user) external view returns (uint256);
-    function isRegistered(address user) external view returns (bool);
-}
-
-interface IXPContract {
-    function registerUser(address user) external;
-    function recordQuizAnswer(address user, bool isCorrect) external;
-    function recordContestParticipation(address user, string memory contestId, uint256 xpEarned) external;
-    function recordBattleResult(address user, string memory battleType, bool isWin, uint256 customXP) external;
-    function awardXP(address user, uint256 amount, string memory reason) external;
-    function getXP(address user) external view returns (uint256);
-    function getUserRank(address user) external view returns (uint256);
-    function isRegistered(address user) external view returns (bool);
-}
-
-interface IBadgesNFT {
-    function recordQuizCompletion(
-        address user,
-        string memory quizType,
-        uint256 timeTaken,
-        bool usedLifeline,
-        bool allCorrect,
-        uint256 correctCount
-    ) external;
-    function recordBattleCompletion(
-        address user,
-        string memory battleType,
-        bool isWin,
-        uint256 points,
-        bool isHighestScore
-    ) external;
-    function recordContestWin(address user) external;
-    function updateReferralCount(address user, uint256 count) external;
-    function awardEliteBadge(address user) external;
-    function getUserBadgeStatus(address user) external view returns (
-        bool[15] memory badges,
-        uint256 totalBadges,
-        uint256 consecutiveWins,
-        uint256 dailyStreak,
-        uint256 correctAnswers
-    );
-}
-
-/**
- * @title LearnWayManager
- * @dev Central management contract for the LearnWay learn-to-earn ecosystem
- * Coordinates between Gems and XP contracts and manages achievements, user profiles, and rewards
- */
-contract LearnWayManager is Ownable, ReentrancyGuard, Pausable {
-
-    // Events
-    event UserRegistered(address indexed user, address indexed referrer, uint256 timestamp);
-    event QuizCompleted(address indexed user, uint256 score, uint256 gemsEarned, uint256 xpChange);
-    event AchievementUnlocked(address indexed user, string achievementId, uint256 gemsReward);
-    event ContestCompleted(address indexed user, string contestId, uint256 gemsEarned, uint256 xpEarned);
-    event BattleCompleted(address indexed user, string battleType, bool isWin, uint256 gemsEarned, uint256 xpChange);
-    event MonthlyRewardsDistributed(uint256 month, uint256 year, address[] topUsers, uint256[] rewards);
-    event UserProfileUpdated(address indexed user, string profileData);
-
-    // Structs
-    struct UserProfile {
-        string username;
-        string profileImageHash;
-        uint256 joinDate;
-        uint256 lastActiveDate;
-        uint256 totalQuizzesCompleted;
-        uint256 totalContestsParticipated;
-        uint256 totalBattlesParticipated;
-        bool isActive;
+// Updated interface for LearnwayXPGemsContract (without lessons, with transactions)
+interface ILearnwayXPGemsContract {
+    enum TransactionType {
+        Lesson,
+        DailyQuiz,
+        RegisterUser,
+        KYCVerified,
+        Battle,
+        Contest,
+        Transfer,
+        Deposit
     }
 
-    struct Achievement {
-        string id;
-        string name;
+    struct Transaction {
+        address walletAddress;
+        uint256 gems;
+        uint256 xp;
+        uint256[] badgesList;
+        TransactionType txType;
+        uint256 timestamp;
         string description;
-        uint256 gemsReward;
-        uint256 requirement;
-        string requirementType; // "quizzes", "contests", "battles", "xp", "gems", "referrals"
-        bool isActive;
     }
 
-    // State variables
-    IGemsContract public gemsContract;
-    IXPContract public xpContract;
-    IBadgesNFT public badgesContract;
+    function registerUser(address user, uint256 gems) external;
+    function updateUserGemsXpAndStreak(address user, uint256 newGems, uint256 newXp, uint256 newStreak) external;
+    function recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] calldata badgesList,
+        TransactionType txType,
+        string calldata description
+    ) external;
+    function batchRecordTransactions(
+        address user,
+        uint256[] calldata gemsAmounts,
+        uint256[] calldata xpAmounts,
+        uint256[][] calldata badgesLists,
+        TransactionType[] calldata txTypes,
+        string[] calldata descriptions
+    ) external;
+    function gemsOf(address user) external view returns (uint256);
+    function xpOf(address user) external view returns (uint256);
+    function streakOf(address user) external view returns (uint256);
+    function isRegistered(address user) external view returns (bool);
+    function getUserInfo(address user)
+        external
+        view
+        returns (
+            uint256 gems,
+            uint256 xp,
+            uint256 longestStreak,
+            bool registered,
+            uint256 createdAt,
+            uint256 lastUpdated
+        );
+    function getUserTransactions(address user) external view returns (Transaction[] memory);
+    function getUserTransaction(address user, uint256 index) external view returns (Transaction memory);
+    function getUserTransactionsByType(address user, TransactionType txType)
+        external
+        view
+        returns (Transaction[] memory);
+    function getUserRecentTransactions(address user, uint256 count) external view returns (Transaction[] memory);
+    function transactionCount(address user) external view returns (uint256);
+    function totalRegisteredUsers() external view returns (uint256);
+}
 
-    mapping(address => UserProfile) private _userProfiles;
-    mapping(address => mapping(bytes32 => bool)) private _userAchievements;
-    mapping(bytes32 => Achievement) private _achievements;
-    string[] private _achievementIds;
+interface ILearnWayBadge {
+    function registerUser(address user, bool kycStatus) external;
+    function mintBadge(address user, uint256 badgeId, BadgeTier tier) external;
+    function batchMintBadges(address user, uint256[] calldata badgeIds, BadgeTier[] calldata tiers) external;
+    function upgradeBadge(address user, uint256 badgeId, BadgeTier newTier) external;
+    function updateKycStatus(address user, bool kycStatus) external;
+    function getUserBadges(address user) external view returns (uint256[] memory);
+    function userHasBadge(address user, uint256 badgeId) external view returns (bool);
+    function getUserBadgeInfo(address user, uint256 badgeId)
+        external
+        view
+        returns (bool hasBadge, uint256 tokenId, BadgeTier tier, uint256 mintedAt, string memory status);
+    function isEligibleForEarlyBird(address user) external view returns (bool);
+    function getEarlyBirdInfo(address user)
+        external
+        view
+        returns (
+            uint256 registrationOrder,
+            uint256 kycOrder,
+            bool isKycCompleted,
+            bool hasEarlyBirdBadge,
+            bool isEligible,
+            uint256 currentTotalKycCompletions,
+            uint256 currentMaxEarlyBirdSpots
+        );
+    function getUserBadgeData(address user)
+        external
+        view
+        returns (
+            bool kycCompleted,
+            bool isRegistered,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder,
+            uint256[] memory badgesList
+        );
 
-    // Monthly leaderboard tracking
-    mapping(uint256 => mapping(uint256 => address[])) private _monthlyTopUsers; // year => month => users
-    mapping(uint256 => mapping(uint256 => bool)) private _monthlyRewardsDistributed; // year => month => distributed
+    struct UserInfo {
+        bool isRegistered;
+        bool kycVerified;
+        uint256 registrationOrder;
+        uint256 totalBadgesEarned;
+    }
 
-    // Contest and battle tracking
-    mapping(bytes32 => mapping(address => bool)) private _contestParticipants;
-    mapping(address => uint256) private _userContestCount;
-    mapping(address => uint256) private _userBattleCount;
+    function userInfo(address user) external view returns (UserInfo memory);
 
-    uint256 private _totalUsers;
+    enum BadgeTier {
+        BRONZE,
+        SILVER,
+        GOLD,
+        PLATINUM,
+        DIAMOND
+    }
+}
 
+contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
+    /* =========================
+       EVENTS
+       ========================= */
+    event UserRegistered(address indexed user, uint256 initialGems, bool kycStatus, uint256 timestamp);
+    event UserDataUpdated(address indexed user, uint256 gems, uint256 xp, uint256 streak, uint256 timestamp);
+    event TransactionRecorded(
+        address indexed user,
+        uint256 gems,
+        uint256 xp,
+        ILearnwayXPGemsContract.TransactionType txType,
+        uint256 timestamp
+    );
+    event BadgeMinted(address indexed user, uint256 badgeId, uint256 timestamp);
+    event BadgeUpgraded(address indexed user, uint256 badgeId, uint256 timestamp);
+    event KycStatusUpdated(address indexed user, bool kycStatus, uint256 timestamp);
+    event ContractsUpdated(address gemsContract, address badgesContract, uint256 timestamp);
+
+    /* =========================
+       CONTRACTS (external)
+       ========================= */
+    ILearnWayAdmin public adminContract;
+    ILearnwayXPGemsContract public gemsContract;
+    ILearnWayBadge public badgesContract;
+
+    /* =========================
+       MODIFIERS
+       ========================= */
     modifier validAddress(address user) {
         require(user != address(0), "Invalid address");
         _;
     }
 
     modifier contractsSet() {
-        require(address(gemsContract) != address(0) && address(xpContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
+        require(address(gemsContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
         _;
     }
 
-    constructor() Ownable(msg.sender) {
-        _initializeAchievements();
+    modifier onlyAdmin() {
+        require(adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender), "Not AuthorizedAdmin");
+        _;
     }
 
-    /**
-     * @dev Set the Gems, XP, and Badges contract addresses
-     * @param _gemsContract Address of the GemsContract
-     * @param _xpContract Address of the XPContract
-     * @param _badgesContract Address of the BadgesNFT contract
-     */
-    function setContracts(address _gemsContract, address _xpContract, address _badgesContract)
-        external
-        onlyOwner
-    {
-        require(_gemsContract != address(0) && _xpContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
-        gemsContract = IGemsContract(_gemsContract);
-        xpContract = IXPContract(_xpContract);
-        badgesContract = IBadgesNFT(_badgesContract);
+    modifier onlyAdminOrManager() {
+        require(
+            adminContract.isAuthorized(keccak256("MANAGER_ROLE"), msg.sender)
+                || adminContract.isAuthorized(keccak256("ADMIN_ROLE"), msg.sender),
+            "Not Authorized Manager"
+        );
+        _;
     }
 
-    /**
-     * @dev Register a new user in both Gems and XP contracts
-     * @param user Address of the new user
-     * @param referralCode Address of the referrer (optional)
-     * @param username Username for the user profile
-     */
-    function registerUser(
-        address user,
-        address referralCode,
-        string memory username
-    )
+    modifier userRegistered(address user) {
+        require(gemsContract.isRegistered(user), "User not registered");
+        _;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _adminContract) public initializer {
+        require(_adminContract != address(0), "Invalid admin contract address");
+
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+
+        adminContract = ILearnWayAdmin(_adminContract);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
+
+    /* =========================
+       ADMIN / SETTERS
+       ========================= */
+
+    function setContracts(address _gemsContract, address _badgesContract) external onlyAdmin {
+        require(_gemsContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
+
+        gemsContract = ILearnwayXPGemsContract(_gemsContract);
+        badgesContract = ILearnWayBadge(_badgesContract);
+
+        emit ContractsUpdated(_gemsContract, _badgesContract, block.timestamp);
+    }
+
+    /* =========================
+       USER REGISTRATION
+       ========================= */
+
+    function registerUser(address user, uint256 initialGems, bool kycStatus)
         external
-        onlyOwner
+        nonReentrant
+        onlyAdminOrManager
         validAddress(user)
         contractsSet
         whenNotPaused
     {
-        require(bytes(username).length > 0, "Username cannot be empty");
         require(!gemsContract.isRegistered(user), "User already registered");
 
         // Register in both contracts
-        gemsContract.registerUser(user, referralCode);
-        xpContract.registerUser(user);
+        gemsContract.registerUser(user, initialGems);
+        badgesContract.registerUser(user, kycStatus);
 
-        // Create user profile
-        _userProfiles[user] = UserProfile({
-            username: username,
-            profileImageHash: "",
-            joinDate: block.timestamp,
-            lastActiveDate: block.timestamp,
-            totalQuizzesCompleted: 0,
-            totalContestsParticipated: 0,
-            totalBattlesParticipated: 0,
-            isActive: true
-        });
+        emit UserRegistered(user, initialGems, kycStatus, block.timestamp);
+    }
 
-        _totalUsers++;
+    /* =========================
+       USER DATA MANAGEMENT
+       ========================= */
 
-        emit UserRegistered(user, referralCode, block.timestamp);
+    function updateUserData(address user, uint256 newGems, uint256 newXp, uint256 newStreak)
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        gemsContract.updateUserGemsXpAndStreak(user, newGems, newXp, newStreak);
+        emit UserDataUpdated(user, newGems, newXp, newStreak, block.timestamp);
+    }
 
-        // Update referral count for referrer (Echo Spreader badge)
-        if (referralCode != address(0) && gemsContract.isRegistered(referralCode)) {
-            // Get referral count from GemsContract (assuming it's tracked there)
-            // For now, we'll implement a manual update function
-            badgesContract.updateReferralCount(referralCode, 0); // Placeholder, should be actual count
-        }
+    /* =========================
+       TRANSACTION MANAGEMENT
+       ========================= */
 
-        // Check for first-time registration achievements
-        _checkAchievements(user);
+    /**
+     * @dev Record a transaction for a user
+     */
+    function recordTransaction(
+        address user,
+        uint256 gems,
+        uint256 xp,
+        uint256[] calldata badgesList,
+        ILearnwayXPGemsContract.TransactionType txType,
+        string calldata description
+    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
+        gemsContract.recordTransaction(user, gems, xp, badgesList, txType, description);
+        emit TransactionRecorded(user, gems, xp, txType, block.timestamp);
     }
 
     /**
-     * @dev Complete a quiz and update both gems and XP
-     * @param user Address of the user
-     * @param score Quiz score (0-100)
-     * @param correctAnswers Array of boolean values for each answer
-     * @param quizType Type of quiz ("guess_word", "fun_learn", etc.)
-     * @param timeTaken Time taken to complete the quiz in seconds
-     * @param usedLifeline Whether the user used a lifeline
+     * @dev Batch record transactions for a user
      */
-    function completeQuiz(
+    function batchRecordTransactions(
         address user,
-        uint256 score,
-        bool[] memory correctAnswers,
-        string memory quizType,
-        uint256 timeTaken,
-        bool usedLifeline
-    )
-        external
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
-        require(gemsContract.isRegistered(user), "User not registered");
-        require(score <= 100, "Invalid score");
+        uint256[] calldata gemsAmounts,
+        uint256[] calldata xpAmounts,
+        uint256[][] calldata badgesLists,
+        ILearnwayXPGemsContract.TransactionType[] calldata txTypes,
+        string[] calldata descriptions
+    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
+        gemsContract.batchRecordTransactions(user, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
 
-        // Award gems based on score (dynamic in GemsContract)
-        gemsContract.awardQuizGems(user, score);
+        for (uint256 i = 0; i < gemsAmounts.length; i++) {
+            emit TransactionRecorded(user, gemsAmounts[i], xpAmounts[i], txTypes[i], block.timestamp);
+        }
+    }
 
-        // Record each answer for XP calculation
-        uint256 correctCount = 0;
-        for (uint256 i = 0; i < correctAnswers.length; i++) {
-            xpContract.recordQuizAnswer(user, correctAnswers[i]);
-            if (correctAnswers[i]) {
-                correctCount++;
+    function batchRecordTransactionsForUsers(
+        address[] calldata users,
+        uint256[][] calldata gemsAmounts,
+        uint256[][] calldata xpAmounts,
+        uint256[][][] calldata badgesLists,
+        ILearnwayXPGemsContract.TransactionType[][] calldata txTypes,
+        string[][] calldata descriptions
+    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
+        require(users.length <= 100, "Batch size too large");
+        require(users.length == gemsAmounts.length, "Array length mismatch");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            if (!gemsContract.isRegistered(users[i])) continue;
+
+            gemsContract.batchRecordTransactions(
+                users[i], gemsAmounts[i], xpAmounts[i], badgesLists[i], txTypes[i], descriptions[i]
+            );
+
+            for (uint256 j = 0; j < gemsAmounts[i].length; j++) {
+                emit TransactionRecorded(users[i], gemsAmounts[i][j], xpAmounts[i][j], txTypes[i][j], block.timestamp);
             }
         }
+    }
 
-        // Update user profile
-        UserProfile storage profile = _userProfiles[user];
-        profile.totalQuizzesCompleted++;
-        profile.lastActiveDate = block.timestamp;
+    /* =========================
+       BADGE MANAGEMENT
+       ========================= */
 
-        // Calculate dynamic gems earned for event emission only
-        uint256 gemsEarned = score >= 70 ? (score - 70) * 2 : 0;
+    function mintBadgeForUser(address user, uint256 badgeId, ILearnWayBadge.BadgeTier tier)
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        badgesContract.mintBadge(user, badgeId, tier);
+        emit BadgeMinted(user, badgeId, block.timestamp);
+    }
 
-        // Record quiz completion for badge tracking
-        bool allCorrect = correctCount == correctAnswers.length;
-        badgesContract.recordQuizCompletion(
-            user,
-            quizType,
-            timeTaken,
-            usedLifeline,
-            allCorrect,
-            correctCount
+    function batchMintBadgesForUser(
+        address user,
+        uint256[] calldata badgeIds,
+        ILearnWayBadge.BadgeTier[] calldata tiers
+    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
+        badgesContract.batchMintBadges(user, badgeIds, tiers);
+
+        for (uint256 i = 0; i < badgeIds.length; i++) {
+            emit BadgeMinted(user, badgeIds[i], block.timestamp);
+        }
+    }
+
+    function batchMintBadgesForMultipleUsers(
+        address[] calldata users,
+        uint256[][] calldata badgeIds,
+        ILearnWayBadge.BadgeTier[][] calldata tiers
+    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
+        require(users.length <= 100, "Batch size too large");
+        require(users.length == badgeIds.length && users.length == tiers.length, "Array length mismatch");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
+
+            if (!gemsContract.isRegistered(user)) continue;
+
+            require(badgeIds[i].length == tiers[i].length, "Badge arrays length mismatch for user");
+
+            if (badgeIds[i].length == 0) continue;
+
+            badgesContract.batchMintBadges(user, badgeIds[i], tiers[i]);
+
+            for (uint256 j = 0; j < badgeIds[i].length; j++) {
+                emit BadgeMinted(user, badgeIds[i][j], block.timestamp);
+            }
+        }
+    }
+
+    function upgradeBadgeForUser(address user, uint256 badgeId, ILearnWayBadge.BadgeTier newTier)
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        badgesContract.upgradeBadge(user, badgeId, newTier);
+        emit BadgeUpgraded(user, badgeId, block.timestamp);
+    }
+
+    function updateUserKycStatus(address user, bool kycStatus)
+        external
+        onlyAdminOrManager
+        validAddress(user)
+        userRegistered(user)
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        badgesContract.updateKycStatus(user, kycStatus);
+        emit KycStatusUpdated(user, kycStatus, block.timestamp);
+    }
+
+    /* =========================
+       BATCH OPERATIONS
+       ========================= */
+
+    function batchRegisterUsers(address[] calldata users, uint256[] calldata initialGems, bool[] calldata kycStatuses)
+        external
+        onlyAdminOrManager
+        contractsSet
+        nonReentrant
+        whenNotPaused
+    {
+        require(users.length == initialGems.length && users.length == kycStatuses.length, "Array length mismatch");
+        require(users.length <= 100, "Batch size too large");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
+
+            if (gemsContract.isRegistered(user)) continue;
+
+            gemsContract.registerUser(user, initialGems[i]);
+            badgesContract.registerUser(user, kycStatuses[i]);
+        }
+    }
+
+    function batchUpdateUserData(
+        address[] calldata users,
+        uint256[] calldata newGems,
+        uint256[] calldata newXp,
+        uint256[] calldata newStreaks
+    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
+        require(
+            users.length == newGems.length && users.length == newXp.length && users.length == newStreaks.length,
+            "Array length mismatch"
         );
+        require(users.length <= 100, "Batch size too large");
 
-        // Check for Elite badge (5k coins)
-        if (gemsContract.balanceOf(user) >= 5000) {
-            badgesContract.awardEliteBadge(user);
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
+
+            if (!gemsContract.isRegistered(user)) continue;
+
+            gemsContract.updateUserGemsXpAndStreak(user, newGems[i], newXp[i], newStreaks[i]);
+            emit UserDataUpdated(user, newGems[i], newXp[i], newStreaks[i], block.timestamp);
         }
-
-        // XP change for event = +4 per correct, -2 per incorrect
-        uint256 totalAnswers = correctAnswers.length;
-        uint256 incorrectCount = totalAnswers - correctCount;
-        uint256 xpChange = correctCount * 4;
-        if (incorrectCount > 0) {
-            xpChange = xpChange > incorrectCount * 2 ? xpChange - incorrectCount * 2 : 0;
-        }
-        emit QuizCompleted(user, score, gemsEarned, xpChange);
-
-        // Check for quiz-related achievements
-        _checkAchievements(user);
     }
 
-    /**
-     * @dev Complete a contest and update rewards
-     * @param user Address of the user
-     * @param contestId Contest identifier
-     * @param gemsEarned Gems earned in the contest
-     * @param xpEarned XP earned in the contest
-     * @param isWin Whether the user won the contest
-     */
-    function completeContest(
-        address user,
-        string memory contestId,
-        uint256 gemsEarned,
-        uint256 xpEarned,
-        bool isWin
-    )
-        public
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
-        require(gemsContract.isRegistered(user), "User not registered");
+    function batchMintBadges(
+        address[] calldata users,
+        uint256[] calldata badgeIds,
+        ILearnWayBadge.BadgeTier[] calldata tiers
+    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
+        require(users.length == badgeIds.length && users.length == tiers.length, "Array length mismatch");
+        require(users.length <= 50, "Batch size too large");
 
-        // Award gems and XP
-        if (gemsEarned > 0) {
-            gemsContract.awardContestGems(user, gemsEarned, contestId);
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
+
+            if (!gemsContract.isRegistered(user)) continue;
+
+            badgesContract.mintBadge(user, badgeIds[i], tiers[i]);
+            emit BadgeMinted(user, badgeIds[i], block.timestamp);
         }
-        xpContract.recordContestParticipation(user, contestId, xpEarned);
-
-        // Update tracking
-        bytes32 cid = keccak256(bytes(contestId));
-        if (!_contestParticipants[cid][user]) {
-            _contestParticipants[cid][user] = true;
-            _userContestCount[user]++;
-        }
-
-        // Update user profile
-        UserProfile storage profile = _userProfiles[user];
-        profile.totalContestsParticipated++;
-        profile.lastActiveDate = block.timestamp;
-
-        // Record contest completion for badge tracking
-        if (isWin) {
-            badgesContract.recordContestWin(user);
-        }
-
-        // Check for Elite badge (5k coins)
-        if (gemsContract.balanceOf(user) >= 5000) {
-            badgesContract.awardEliteBadge(user);
-        }
-
-        emit ContestCompleted(user, contestId, gemsEarned, xpEarned);
-
-        // Check for contest-related achievements
-        _checkAchievements(user);
     }
 
-    /**
-     * @dev Complete a battle and update rewards
-     * @param user Address of the user
-     * @param battleType Type of battle ("1v1" or "group")
-     * @param isWin Whether the user won
-     * @param gemsEarned Gems earned from the battle
-     * @param customXP Custom XP amount (0 to use default)
-     * @param points Points scored in the battle
-     * @param isHighestScore Whether user had highest score in the battle
-     */
-    function completeBattle(
-        address user,
-        string memory battleType,
-        bool isWin,
-        uint256 gemsEarned,
-        uint256 customXP,
-        uint256 points,
-        bool isHighestScore
-    )
-        public
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
-        require(gemsContract.isRegistered(user), "User not registered");
-
-        // Award gems if any
-        if (gemsEarned > 0) {
-            gemsContract.awardContestGems(user, gemsEarned, string(abi.encodePacked("Battle: ", battleType)));
-        }
-
-        // Record battle result for XP
-        xpContract.recordBattleResult(user, battleType, isWin, customXP);
-
-        // Update tracking
-        _userBattleCount[user]++;
-
-        // Update user profile
-        UserProfile storage profile = _userProfiles[user];
-        profile.totalBattlesParticipated++;
-        profile.lastActiveDate = block.timestamp;
-
-        // Record battle completion for badge tracking
-        badgesContract.recordBattleCompletion(
-            user,
-            battleType,
-            isWin,
-            points,
-            isHighestScore
-        );
-
-        // Check for Elite badge (5k coins)
-        if (gemsContract.balanceOf(user) >= 5000) {
-            badgesContract.awardEliteBadge(user);
-        }
-
-        uint256 xpChange = customXP > 0 ? customXP : (isWin ? 50 : 10); // Default XP values
-
-        emit BattleCompleted(user, battleType, isWin, gemsEarned, xpChange);
-
-        // Check for battle-related achievements
-        _checkAchievements(user);
-    }
-
-    /**
-     * @dev Distribute monthly leaderboard rewards
-     * @param month Month (1-12)
-     * @param year Year
-     * @param topUsers Array of top 3 users
-     */
-    function distributeMonthlyRewards(
-        uint256 month,
-        uint256 year,
-        address[] memory topUsers
-    )
+    function batchUpdateKycStatus(address[] calldata users, bool[] calldata kycStatuses)
         external
-        onlyOwner
+        onlyAdminOrManager
         contractsSet
+        nonReentrant
         whenNotPaused
     {
-        require(month >= 1 && month <= 12, "Invalid month");
-        require(topUsers.length <= 3, "Maximum 3 users");
-        require(!_monthlyRewardsDistributed[year][month], "Rewards already distributed");
+        require(users.length == kycStatuses.length, "Array length mismatch");
+        require(users.length <= 100, "Batch size too large");
 
-        uint256[] memory rewards = new uint256[](topUsers.length);
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
 
-        for (uint256 i = 0; i < topUsers.length; i++) {
-            require(gemsContract.isRegistered(topUsers[i]), "User not registered");
-            gemsContract.awardMonthlyLeaderboardReward(topUsers[i], i + 1);
+            if (!gemsContract.isRegistered(user)) continue;
 
-            // Store reward amount for event
-            if (i == 0) rewards[i] = 1000; // 1st place
-            else if (i == 1) rewards[i] = 500; // 2nd place
-            else rewards[i] = 250; // 3rd place
-        }
-
-        _monthlyTopUsers[year][month] = topUsers;
-        _monthlyRewardsDistributed[year][month] = true;
-
-        emit MonthlyRewardsDistributed(month, year, topUsers, rewards);
-    }
-
-    /**
-     * @dev Update user profile information
-     * @param user Address of the user
-     * @param username New username
-     * @param profileImageHash IPFS hash of profile image
-     */
-    function updateUserProfile(
-        address user,
-        string memory username,
-        string memory profileImageHash
-    )
-        external
-        onlyOwner
-        validAddress(user)
-        whenNotPaused
-    {
-        require(gemsContract.isRegistered(user), "User not registered");
-
-        UserProfile storage profile = _userProfiles[user];
-        profile.username = username;
-        profile.profileImageHash = profileImageHash;
-        profile.lastActiveDate = block.timestamp;
-
-        emit UserProfileUpdated(user, string(abi.encodePacked(username, ",", profileImageHash)));
-    }
-
-    /**
-     * @dev Update referral count for Echo Spreader badge
-     * @param user Address of the user
-     * @param referralCount Total number of referrals
-     */
-    function updateReferralCount(address user, uint256 referralCount)
-        external
-        onlyOwner
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
-        require(gemsContract.isRegistered(user), "User not registered");
-
-        badgesContract.updateReferralCount(user, referralCount);
-
-        // Check for Elite badge (5k coins)
-        if (gemsContract.balanceOf(user) >= 5000) {
-            badgesContract.awardEliteBadge(user);
+            badgesContract.updateKycStatus(user, kycStatuses[i]);
+            emit KycStatusUpdated(user, kycStatuses[i], block.timestamp);
         }
     }
 
-    /**
-     * @dev Get comprehensive user data including badges
-     * @param user Address of the user
-     * @return profile User profile
-     * @return gemsBalance Current gems balance
-     * @return xpBalance Current XP balance
-     * @return userRank Current leaderboard rank
-     * @return badges Array of badge status
-     * @return totalBadges Total number of badges earned
-     * @return consecutiveWins Current consecutive wins
-     * @return dailyStreak Current daily streak
-     * @return correctAnswers Total correct answers
-     */
-    function getUserData(address user)
+    /* =========================
+       VIEW FUNCTIONS
+       ========================= */
+
+    function getUserCompleteData(address user)
         external
         view
         returns (
-            UserProfile memory profile,
-            uint256 gemsBalance,
-            uint256 xpBalance,
-            uint256 userRank,
-            bool[15] memory badges,
-            uint256 totalBadges,
-            uint256 consecutiveWins,
-            uint256 dailyStreak,
-            uint256 correctAnswers
+            uint256 gems,
+            uint256 xp,
+            uint256 longestStreak,
+            uint256 createdAt,
+            uint256 lastUpdated,
+            uint256[] memory badgesList,
+            uint256 transactionCount,
+            bool kycCompleted,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder
         )
     {
-        profile = _userProfiles[user];
-        gemsBalance = address(gemsContract) != address(0) ? gemsContract.balanceOf(user) : 0;
-        xpBalance = address(xpContract) != address(0) ? xpContract.getXP(user) : 0;
-        userRank = address(xpContract) != address(0) ? xpContract.getUserRank(user) : 0;
+        if (address(gemsContract) != address(0)) {
+            (gems, xp, longestStreak,, createdAt, lastUpdated) = gemsContract.getUserInfo(user);
+            transactionCount = gemsContract.transactionCount(user);
+        }
 
         if (address(badgesContract) != address(0)) {
-            (badges, totalBadges, consecutiveWins, dailyStreak, correctAnswers) = badgesContract.getUserBadgeStatus(user);
+            badgesList = badgesContract.getUserBadges(user);
+            ILearnWayBadge.UserInfo memory userBadgeInfo = badgesContract.userInfo(user);
+            kycCompleted = userBadgeInfo.kycVerified;
+            totalBadgesEarned = userBadgeInfo.totalBadgesEarned;
+            registrationOrder = userBadgeInfo.registrationOrder;
         }
     }
 
-    /**
-     * @dev Check if user has unlocked a specific achievement
-     * @param user Address of the user
-     * @param achievementId Achievement identifier
-     * @return Whether the achievement is unlocked
-     */
-    function hasAchievement(address user, string memory achievementId)
+    function getUserGemsData(address user)
         external
         view
-        returns (bool)
+        returns (
+            uint256 gems,
+            uint256 xp,
+            uint256 longestStreak,
+            bool registered,
+            uint256 createdAt,
+            uint256 lastUpdated
+        )
     {
-        bytes32 aid = keccak256(bytes(achievementId));
-        return _userAchievements[user][aid];
+        if (address(gemsContract) != address(0)) {
+            return gemsContract.getUserInfo(user);
+        }
+        // All return values automatically default to 0/false
     }
 
-    /**
-     * @dev Get achievement details
-     * @param achievementId Achievement identifier
-     * @return Achievement struct
-     */
-    function getAchievement(string memory achievementId)
+    function getUserBadgeData(address user)
         external
         view
-        returns (Achievement memory)
+        returns (
+            bool kycCompleted,
+            bool isRegistered,
+            uint256 totalBadgesEarned,
+            uint256 registrationOrder,
+            uint256[] memory badgesList
+        )
     {
-        bytes32 aid = keccak256(bytes(achievementId));
-        return _achievements[aid];
-    }
-
-    /**
-     * @dev Get all achievement IDs
-     * @return Array of achievement IDs
-     */
-    function getAllAchievementIds() external view returns (string[] memory) {
-        return _achievementIds;
-    }
-
-    /**
-     * @dev Get monthly top users
-     * @param year Year
-     * @param month Month
-     * @return Array of top users for the month
-     */
-    function getMonthlyTopUsers(uint256 year, uint256 month)
-        external
-        view
-        returns (address[] memory)
-    {
-        return _monthlyTopUsers[year][month];
-    }
-
-    /**
-     * @dev Internal function to check and unlock achievements
-     * @param user Address of the user
-     */
-    function _checkAchievements(address user) internal {
-        UserProfile memory profile = _userProfiles[user];
-        uint256 userXP = address(xpContract) != address(0) ? xpContract.getXP(user) : 0;
-        uint256 userGems = address(gemsContract) != address(0) ? gemsContract.balanceOf(user) : 0;
-
-        for (uint256 i = 0; i < _achievementIds.length; i++) {
-            string memory achievementId = _achievementIds[i];
-            bytes32 aid = keccak256(bytes(achievementId));
-            Achievement memory achievement = _achievements[aid];
-
-            if (!achievement.isActive || _userAchievements[user][aid]) {
-                continue;
-            }
-
-            bool unlocked = false;
-
-            // Check achievement requirements
-            if (keccak256(bytes(achievement.requirementType)) == keccak256(bytes("quizzes"))) {
-                unlocked = profile.totalQuizzesCompleted >= achievement.requirement;
-            } else if (keccak256(bytes(achievement.requirementType)) == keccak256(bytes("contests"))) {
-                unlocked = profile.totalContestsParticipated >= achievement.requirement;
-            } else if (keccak256(bytes(achievement.requirementType)) == keccak256(bytes("battles"))) {
-                unlocked = profile.totalBattlesParticipated >= achievement.requirement;
-            } else if (keccak256(bytes(achievement.requirementType)) == keccak256(bytes("xp"))) {
-                unlocked = userXP >= achievement.requirement;
-            } else if (keccak256(bytes(achievement.requirementType)) == keccak256(bytes("gems"))) {
-                unlocked = userGems >= achievement.requirement;
-            }
-
-            if (unlocked) {
-                _userAchievements[user][aid] = true;
-
-                // Award gems for achievement
-                if (achievement.gemsReward > 0 && address(gemsContract) != address(0)) {
-                    gemsContract.awardContestGems(user, achievement.gemsReward, "Achievement reward");
-                }
-
-                emit AchievementUnlocked(user, achievementId, achievement.gemsReward);
-            }
+        if (address(badgesContract) != address(0)) {
+            return badgesContract.getUserBadgeData(user);
+        } else {
+            // Return empty array for badgesList when contract not set
+            badgesList = new uint256[](0);
         }
     }
 
-    /**
-     * @dev Initialize default achievements
-     */
-    function _initializeAchievements() internal {
-        // Quiz achievements
-        _addAchievement("first_quiz", "First Steps", "Complete your first quiz", 100, 1, "quizzes");
-        _addAchievement("quiz_master", "Quiz Master", "Complete 50 quizzes", 500, 50, "quizzes");
-        _addAchievement("quiz_legend", "Quiz Legend", "Complete 200 quizzes", 1000, 200, "quizzes");
-
-        // Contest achievements
-        _addAchievement("contest_participant", "Contest Participant", "Participate in your first contest", 150, 1, "contests");
-        _addAchievement("contest_veteran", "Contest Veteran", "Participate in 25 contests", 750, 25, "contests");
-
-        // Battle achievements
-        _addAchievement("first_battle", "First Battle", "Participate in your first battle", 200, 1, "battles");
-        _addAchievement("battle_warrior", "Battle Warrior", "Participate in 100 battles", 1000, 100, "battles");
-
-        // XP achievements
-        _addAchievement("xp_collector", "XP Collector", "Earn 1000 XP", 300, 1000, "xp");
-        _addAchievement("xp_master", "XP Master", "Earn 10000 XP", 1500, 10000, "xp");
-
-        // Gems achievements
-        _addAchievement("gem_saver", "Gem Saver", "Accumulate 5000 gems", 500, 5000, "gems");
-        _addAchievement("gem_collector", "Gem Collector", "Accumulate 20000 gems", 2000, 20000, "gems");
+    function getUserBadgeInfo(address user, uint256 badgeId)
+        external
+        view
+        returns (bool hasBadge, uint256 tokenId, ILearnWayBadge.BadgeTier tier, uint256 mintedAt, string memory status)
+    {
+        if (address(badgesContract) != address(0)) {
+            return badgesContract.getUserBadgeInfo(user, badgeId);
+        }
+        // When contract not set, return empty string for status
+        status = "";
+        // Other values automatically default to: false, 0, BRONZE, 0
     }
 
-    /**
-     * @dev Add a new achievement
-     */
-    function _addAchievement(
-        string memory id,
-        string memory name,
-        string memory description,
-        uint256 gemsReward,
-        uint256 requirement,
-        string memory requirementType
-    ) internal {
-        bytes32 aid = keccak256(bytes(id));
-        require(bytes(_achievements[aid].id).length == 0, "Achievement already exists");
-        _achievements[aid] = Achievement({
-            id: id,
-            name: name,
-            description: description,
-            gemsReward: gemsReward,
-            requirement: requirement,
-            requirementType: requirementType,
-            isActive: true
-        });
-        _achievementIds.push(id);
+    function getUserGems(address user) external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.gemsOf(user) : 0;
     }
 
-    /**
-     * @dev Add custom achievement (only owner)
-     */
-    function addCustomAchievement(
-        string memory id,
-        string memory name,
-        string memory description,
-        uint256 gemsReward,
-        uint256 requirement,
-        string memory requirementType
-    ) external onlyOwner {
-        bytes32 aid = keccak256(bytes(id));
-        require(bytes(_achievements[aid].id).length == 0, "Achievement already exists");
-        _addAchievement(id, name, description, gemsReward, requirement, requirementType);
+    function getUserXp(address user) external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.xpOf(user) : 0;
     }
 
-    /**
-     * @dev Emergency pause function
-     */
-    function pause() external onlyOwner {
+    function getUserStreak(address user) external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.streakOf(user) : 0;
+    }
+
+    // Transaction view functions
+    function getUserTransactions(address user) external view returns (ILearnwayXPGemsContract.Transaction[] memory) {
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserTransactions(user)
+            : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserTransaction(address user, uint256 index)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction memory)
+    {
+        require(address(gemsContract) != address(0), "Gems contract not set");
+        return gemsContract.getUserTransaction(user, index);
+    }
+
+    function getUserTransactionsByType(address user, ILearnwayXPGemsContract.TransactionType txType)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction[] memory)
+    {
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserTransactionsByType(user, txType)
+            : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserRecentTransactions(address user, uint256 count)
+        external
+        view
+        returns (ILearnwayXPGemsContract.Transaction[] memory)
+    {
+        return address(gemsContract) != address(0)
+            ? gemsContract.getUserRecentTransactions(user, count)
+            : new ILearnwayXPGemsContract.Transaction[](0);
+    }
+
+    function getUserTransactionCount(address user) external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.transactionCount(user) : 0;
+    }
+
+    function getUserBadges(address user) external view returns (uint256[] memory) {
+        return address(badgesContract) != address(0) ? badgesContract.getUserBadges(user) : new uint256[](0);
+    }
+
+    function userHasBadge(address user, uint256 badgeId) external view returns (bool) {
+        return address(badgesContract) != address(0) ? badgesContract.userHasBadge(user, badgeId) : false;
+    }
+
+    function isUserRegistered(address user) external view returns (bool) {
+        return address(gemsContract) != address(0) ? gemsContract.isRegistered(user) : false;
+    }
+
+    function isEligibleForEarlyBird(address user) external view returns (bool) {
+        return address(badgesContract) != address(0) ? badgesContract.isEligibleForEarlyBird(user) : false;
+    }
+
+    function getEarlyBirdInfo(address user)
+        external
+        view
+        returns (
+            uint256 registrationOrder,
+            uint256 kycOrder,
+            bool isKycCompleted,
+            bool hasEarlyBirdBadge,
+            bool isEligible,
+            uint256 currentTotalKycCompletions,
+            uint256 currentMaxEarlyBirdSpots
+        )
+    {
+        if (address(badgesContract) != address(0)) {
+            return badgesContract.getEarlyBirdInfo(user);
+        }
+    }
+
+    function getTotalUsers() external view returns (uint256) {
+        return address(gemsContract) != address(0) ? gemsContract.totalRegisteredUsers() : 0;
+    }
+
+    function getContractAddresses() external view returns (address gemsAddr, address badgesAddr) {
+        return (address(gemsContract), address(badgesContract));
+    }
+
+    /* =========================
+       ADMIN FUNCTIONS
+       ========================= */
+
+    function pause() external onlyAdmin {
         _pause();
     }
 
-    /**
-     * @dev Emergency unpause function
-     */
-    function unpause() external onlyOwner {
+    function unpause() external onlyAdmin {
         _unpause();
     }
 
-    /**
-     * @dev Get total registered users
-     */
-    function getTotalUsers() external view returns (uint256) {
-        return _totalUsers;
+    function updateAdminContract(address newAdminContract) external onlyAdmin {
+        require(newAdminContract != address(0), "Invalid admin contract address");
+        adminContract = ILearnWayAdmin(newAdminContract);
     }
 
-
-    // ==============================
-    // Test Compatibility Functions
-    // ==============================
-
-    /**
-     * @dev Participate in contest (wrapper for completeContest with isWin=false)
-     */
-    function participateInContest(
-        address user,
-        string memory contestId,
-        uint256 gemsEarned,
-        uint256 xpEarned
-    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
-        completeContest(user, contestId, gemsEarned, xpEarned, false);
-    }
-
-    /**
-     * @dev Get user profile
-     */
-    function getUserProfile(address user) external view returns (UserProfile memory) {
-        return _userProfiles[user];
-    }
-
-    /**
-     * @dev Update user profile with profileData parameter for test compatibility
-     */
-    function updateUserProfile(
-        address user,
-        string memory username,
-        string memory profileImageHash,
-        string memory profileData
-    ) external onlyOwner validAddress(user) whenNotPaused {
-        require(gemsContract.isRegistered(user), "User not registered");
-
-        UserProfile storage profile = _userProfiles[user];
-        profile.username = username;
-        profile.profileImageHash = profileImageHash;
-        profile.lastActiveDate = block.timestamp;
-
-        emit UserProfileUpdated(user, profileData);
-    }
-
-    /**
-     * @dev Deactivate user
-     */
-    function deactivateUser(address user) external onlyOwner validAddress(user) {
-        _userProfiles[user].isActive = false;
-    }
-
-    /**
-     * @dev Reactivate user
-     */
-    function reactivateUser(address user) external onlyOwner validAddress(user) {
-        _userProfiles[user].isActive = true;
-    }
-
-    /**
-     * @dev Distribute monthly rewards with rewards array (test compatibility)
-     */
-    function distributeMonthlyRewards(
-        uint256 month,
-        uint256 year,
-        address[] memory topUsers,
-        uint256[] memory rewards
-    ) external onlyOwner contractsSet whenNotPaused {
-        require(month >= 1 && month <= 12, "Invalid month");
-        require(topUsers.length == rewards.length, "Arrays length mismatch");
-        require(!_monthlyRewardsDistributed[year][month], "Rewards already distributed for this month");
-
-        for (uint256 i = 0; i < topUsers.length; i++) {
-            require(gemsContract.isRegistered(topUsers[i]), "User not registered");
-            gemsContract.awardContestGems(topUsers[i], rewards[i], "Monthly reward");
-        }
-
-        _monthlyTopUsers[year][month] = topUsers;
-        _monthlyRewardsDistributed[year][month] = true;
-
-        emit MonthlyRewardsDistributed(month, year, topUsers, rewards);
-    }
-
-    /**
-     * @dev Check if monthly reward was distributed
-     */
-    function isMonthlyRewardDistributed(uint256 month, uint256 year) external view returns (bool) {
-        return _monthlyRewardsDistributed[year][month];
-    }
-
-    /**
-     * @dev Add achievement (external wrapper)
-     */
-    function addAchievement(
-        string memory id,
-        string memory name,
-        string memory description,
-        uint256 gemsReward,
-        uint256 requirement,
-        string memory requirementType
-    ) external onlyOwner {
-        bytes32 aid = keccak256(bytes(id));
-        require(bytes(_achievements[aid].id).length == 0, "Achievement already exists");
-        _addAchievement(id, name, description, gemsReward, requirement, requirementType);
-    }
-
-    /**
-     * @dev Check if achievement is active
-     */
-    function isAchievementActive(string memory id) external view returns (bool) {
-        bytes32 aid = keccak256(bytes(id));
-        return _achievements[aid].isActive;
-    }
-
-    /**
-     * @dev Deactivate achievement
-     */
-    function deactivateAchievement(string memory id) external onlyOwner {
-        bytes32 aid = keccak256(bytes(id));
-        require(bytes(_achievements[aid].id).length > 0, "Achievement does not exist");
-        _achievements[aid].isActive = false;
-    }
-
-    /**
-     * @dev Complete battle with 6 parameters (test compatibility)
-     */
-    function completeBattle(
-        address user,
-        string memory battleType,
-        bool isWin,
-        uint256 gemsEarned,
-        uint256 customXP,
-        bool isHighestScore
-    ) external onlyOwner validAddress(user) contractsSet whenNotPaused {
-        completeBattle(user, battleType, isWin, gemsEarned, customXP, 0, isHighestScore);
+    function version() external pure returns (string memory) {
+        return "1.0.0";
     }
 }
