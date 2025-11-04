@@ -30,7 +30,7 @@ contract LearnWayBadge is
 
     // Configurable early bird limit
     uint256 public maxEarlyBirdSpots;
-    uint256 public totalKycCompletions; // NEW: Tracks order of KYC completion
+    uint256 public totalKycCompletions;
     uint256 public totalRegistrations;
 
     // Badge Categories
@@ -76,7 +76,7 @@ contract LearnWayBadge is
         bool isRegistered;
         bool kycVerified;
         uint256 registrationOrder;
-        uint256 kycOrder; // NEW: Order of KYC completion (0 if not KYC'd)
+        uint256 kycOrder;
         uint256 totalBadgesEarned;
     }
 
@@ -88,6 +88,9 @@ contract LearnWayBadge is
     mapping(uint256 => BadgeAttributes) public tokenAttributes;
     mapping(address => uint256[]) public userBadgeList;
     mapping(uint256 => address) public tokenToOwner;
+    
+    // NEW: Image URL mapping for flexible badge image management
+    mapping(uint256 => mapping(BadgeTier => string)) public badgeImageURLs;
 
     string public baseTokenURI;
 
@@ -95,8 +98,10 @@ contract LearnWayBadge is
     event BadgeMinted(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier tier, bool status);
     event BadgeUpgraded(address indexed user, uint256 indexed badgeId, uint256 tokenId, BadgeTier newTier, bool status);
     event UserRegistered(address indexed user, uint256 registrationOrder, bool kycStatus, bool status);
-    event KycStatusUpdated(address indexed user, bool kycStatus, uint256 kycOrder, bool status); // UPDATED
+    event KycStatusUpdated(address indexed user, bool kycStatus, uint256 kycOrder, bool status);
     event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, bool status);
+    event BadgeImageURLSet(uint256 indexed badgeId, BadgeTier tier, string imageURL, bool status);
+    event BadgeImageURLsSet(uint256[] badgeIds, BadgeTier[] tiers, string[] imageURLs, bool status);
 
     uint256[45] private _gap;
 
@@ -225,7 +230,7 @@ contract LearnWayBadge is
             false
         ];
 
-        uint8[24] memory maxSupplies = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+        uint8[24] memory maxSupplies = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
         for (uint256 i = 0; i < 24; i++) {
             badges[i] = Badge({
@@ -236,6 +241,47 @@ contract LearnWayBadge is
                 currentSupply: 0
             });
         }
+    }
+
+    /**
+     * @dev Set image URL for a specific badge and tier
+     * @param badgeId The badge ID
+     * @param tier The badge tier
+     * @param imageURL The complete image URL
+     */
+    function setBadgeImageURL(uint256 badgeId, BadgeTier tier, string calldata imageURL) external onlyAdmin {
+        require(bytes(imageURL).length > 0, "Empty image URL");
+        
+        badgeImageURLs[badgeId][tier] = imageURL;
+        emit BadgeImageURLSet(badgeId, tier, imageURL, true);
+    }
+
+
+
+    /**
+     * @dev Get the image URL for a specific badge and tier
+     * @param badgeId The badge ID
+     * @param tier The badge tier
+     * @return The image URL
+     */
+    function getBadgeImageURL(uint256 badgeId, BadgeTier tier) public view returns (string memory) {
+        string memory imageURL = badgeImageURLs[badgeId][tier];
+        
+        // If custom URL is set, use it
+        if (bytes(imageURL).length > 0) {
+            return imageURL;
+        }
+        
+        // Fallback to baseTokenURI construction
+        return string(
+            abi.encodePacked(
+                baseTokenURI,
+                badgeId.toString(),
+                "_",
+                uint256(tier).toString(),
+                ".svg"
+            )
+        );
     }
 
     function registerUser(address user, bool kycStatus) external onlyManager nonReentrant {
@@ -496,6 +542,9 @@ contract LearnWayBadge is
         Badge memory badge = badges[attrs.badgeId];
         UserInfo memory user = userInfo[owner];
 
+        // Use the new getBadgeImageURL function
+        string memory imageURL = getBadgeImageURL(attrs.badgeId, attrs.tier);
+
         string memory json = string(
             abi.encodePacked(
                 '{"name":"',
@@ -503,11 +552,8 @@ contract LearnWayBadge is
                 '","description":"',
                 _getBadgeDescription(attrs.badgeId, attrs.tier),
                 '","image":"',
-                baseTokenURI,
-                attrs.badgeId.toString(),
-                "_",
-                uint256(attrs.tier).toString(),
-                '.png","attributes":['
+                imageURL,
+                '","attributes":['
             )
         );
 
