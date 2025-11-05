@@ -78,7 +78,6 @@ interface ILearnwayXPGemsContract {
 interface ILearnWayBadge {
     function registerUser(address user, bool kycStatus) external;
     function mintBadge(address user, uint256 badgeId, BadgeTier tier) external;
-    function batchMintBadges(address user, uint256[] calldata badgeIds, BadgeTier[] calldata tiers) external;
     function upgradeBadge(address user, uint256 badgeId, BadgeTier newTier) external;
     function updateKycStatus(address user, bool kycStatus) external;
     function getUserBadges(address user) external view returns (uint256[] memory);
@@ -87,7 +86,6 @@ interface ILearnWayBadge {
         external
         view
         returns (bool hasBadge, uint256 tokenId, BadgeTier tier, uint256 mintedAt, string memory status);
-    function isEligibleForEarlyBird(address user) external view returns (bool);
     function getEarlyBirdInfo(address user)
         external
         view
@@ -216,26 +214,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         emit ContractsUpdated(_gemsContract, _badgesContract, block.timestamp);
     }
 
-    /* =========================
-       USER REGISTRATION
-       ========================= */
-
-    function registerUser(address user, uint256 initialGems, bool kycStatus)
-        external
-        nonReentrant
-        onlyAdminOrManager
-        validAddress(user)
-        contractsSet
-        whenNotPaused
-    {
-        require(!gemsContract.isRegistered(user), "User already registered");
-
-        // Register in both contracts
-        gemsContract.registerUser(user, initialGems);
-        badgesContract.registerUser(user, kycStatus);
-
-        emit UserRegistered(user, initialGems, kycStatus, block.timestamp);
-    }
 
     /* =========================
        USER DATA MANAGEMENT
@@ -258,20 +236,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
        TRANSACTION MANAGEMENT
        ========================= */
 
-    /**
-     * @dev Record a transaction for a user
-     */
-    function recordTransaction(
-        address user,
-        uint256 gems,
-        uint256 xp,
-        uint256[] calldata badgesList,
-        ILearnwayXPGemsContract.TransactionType txType,
-        string calldata description
-    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
-        gemsContract.recordTransaction(user, gems, xp, badgesList, txType, description);
-        emit TransactionRecorded(user, gems, xp, txType, block.timestamp);
-    }
 
     /**
      * @dev Batch record transactions for a user
@@ -319,56 +283,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
        BADGE MANAGEMENT
        ========================= */
 
-    function mintBadgeForUser(address user, uint256 badgeId, ILearnWayBadge.BadgeTier tier)
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userRegistered(user)
-        contractsSet
-        nonReentrant
-        whenNotPaused
-    {
-        badgesContract.mintBadge(user, badgeId, tier);
-        emit BadgeMinted(user, badgeId, block.timestamp);
-    }
-
-    function batchMintBadgesForUser(
-        address user,
-        uint256[] calldata badgeIds,
-        ILearnWayBadge.BadgeTier[] calldata tiers
-    ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
-        badgesContract.batchMintBadges(user, badgeIds, tiers);
-
-        for (uint256 i = 0; i < badgeIds.length; i++) {
-            emit BadgeMinted(user, badgeIds[i], block.timestamp);
-        }
-    }
-
-    function batchMintBadgesForMultipleUsers(
-        address[] calldata users,
-        uint256[][] calldata badgeIds,
-        ILearnWayBadge.BadgeTier[][] calldata tiers
-    ) external onlyAdminOrManager contractsSet nonReentrant whenNotPaused {
-        require(users.length <= 100, "Batch size too large");
-        require(users.length == badgeIds.length && users.length == tiers.length, "Array length mismatch");
-
-        for (uint256 i = 0; i < users.length; i++) {
-            address user = users[i];
-            require(user != address(0), "Invalid address in batch");
-
-            if (!gemsContract.isRegistered(user)) continue;
-
-            require(badgeIds[i].length == tiers[i].length, "Badge arrays length mismatch for user");
-
-            if (badgeIds[i].length == 0) continue;
-
-            badgesContract.batchMintBadges(user, badgeIds[i], tiers[i]);
-
-            for (uint256 j = 0; j < badgeIds[i].length; j++) {
-                emit BadgeMinted(user, badgeIds[i][j], block.timestamp);
-            }
-        }
-    }
 
     function upgradeBadgeForUser(address user, uint256 badgeId, ILearnWayBadge.BadgeTier newTier)
         external
@@ -383,18 +297,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         emit BadgeUpgraded(user, badgeId, block.timestamp);
     }
 
-    function updateUserKycStatus(address user, bool kycStatus)
-        external
-        onlyAdminOrManager
-        validAddress(user)
-        userRegistered(user)
-        contractsSet
-        nonReentrant
-        whenNotPaused
-    {
-        badgesContract.updateKycStatus(user, kycStatus);
-        emit KycStatusUpdated(user, kycStatus, block.timestamp);
-    }
+
 
     /* =========================
        BATCH OPERATIONS
@@ -632,9 +535,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         return address(gemsContract) != address(0) ? gemsContract.isRegistered(user) : false;
     }
 
-    function isEligibleForEarlyBird(address user) external view returns (bool) {
-        return address(badgesContract) != address(0) ? badgesContract.isEligibleForEarlyBird(user) : false;
-    }
+
 
     function getEarlyBirdInfo(address user)
         external

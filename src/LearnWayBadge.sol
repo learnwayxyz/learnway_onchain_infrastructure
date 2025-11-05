@@ -314,18 +314,6 @@ contract LearnWayBadge is
         _mintBadge(user, badgeId, tier);
     }
 
-    function batchMintBadges(address user, uint256[] calldata badgeIds, BadgeTier[] calldata tiers)
-        external
-        onlyManager
-        nonReentrant
-    {
-        require(userInfo[user].isRegistered, "User not registered");
-        require(badgeIds.length == tiers.length, "Arrays length mismatch");
-
-        for (uint256 i = 0; i < badgeIds.length; i++) {
-            _mintBadge(user, badgeIds[i], tiers[i]);
-        }
-    }
 
     function _mintBadge(address user, uint256 badgeId, BadgeTier tier) internal {
         require(badgeId < 24, "Invalid badge ID");
@@ -408,7 +396,10 @@ contract LearnWayBadge is
         if (userHasBadge[user][0]) {
             _updateBadgeTier(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
-
+        // if your kycstatus is true and the early bird badge has not reach the maxsupply then mint the early bird badge
+        if (kycStatus && !userHasBadge[user][2] && userInfo[user].kycOrder <= maxEarlyBirdSpots) {
+              _mintBadge(user, 2, BadgeTier.GOLD);
+        }
         emit KycStatusUpdated(user, kycStatus, userInfo[user].kycOrder, true);
     }
 
@@ -463,10 +454,6 @@ contract LearnWayBadge is
         return super._update(to, tokenId, auth);
     }
 
-    function isEligibleForEarlyBird(address user) external view returns (bool) {
-        return userInfo[user].kycVerified && userInfo[user].kycOrder > 0 && userInfo[user].kycOrder <= maxEarlyBirdSpots
-            && !userHasBadge[user][2];
-    }
 
     // UPDATED: Now returns kycOrder information
     function getEarlyBirdInfo(address user)

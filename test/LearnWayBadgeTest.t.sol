@@ -316,17 +316,7 @@ contract LearnWayBadgeTest is Test {
         badge.mintBadge(user3, 2, LearnWayBadge.BadgeTier.GOLD);
     }
 
-    function test_IsEligibleForEarlyBird() public {
-        vm.prank(managerEOA);
-        badge.registerUser(user1, true);
 
-        assertTrue(badge.isEligibleForEarlyBird(user1));
-
-        vm.prank(managerEOA);
-        badge.mintBadge(user1, 2, LearnWayBadge.BadgeTier.GOLD);
-
-        assertFalse(badge.isEligibleForEarlyBird(user1));
-    }
 
     function test_GetEarlyBirdInfo() public {
         vm.prank(managerEOA);
@@ -372,59 +362,11 @@ contract LearnWayBadgeTest is Test {
         badge.setMaxEarlyBirdSpots(500);
     }
 
-    // ==================== BATCH MINT TESTS ====================
 
-    function test_BatchMintBadges_Success() public {
-        vm.prank(managerEOA);
-        badge.registerUser(user1, true);
 
-        uint256[] memory badgeIds = new uint256[](3);
-        badgeIds[0] = 1;
-        badgeIds[1] = 3;
-        badgeIds[2] = 4;
 
-        LearnWayBadge.BadgeTier[] memory tiers = new LearnWayBadge.BadgeTier[](3);
-        tiers[0] = LearnWayBadge.BadgeTier.GOLD;
-        tiers[1] = LearnWayBadge.BadgeTier.SILVER;
-        tiers[2] = LearnWayBadge.BadgeTier.BRONZE;
 
-        vm.prank(managerEOA);
-        badge.batchMintBadges(user1, badgeIds, tiers);
 
-        assertTrue(badge.userHasBadge(user1, 1));
-        assertTrue(badge.userHasBadge(user1, 3));
-        assertTrue(badge.userHasBadge(user1, 4));
-    }
-
-    function test_BatchMintBadges_RevertsIfLengthMismatch() public {
-        vm.prank(managerEOA);
-        badge.registerUser(user1, true);
-
-        uint256[] memory badgeIds = new uint256[](2);
-        badgeIds[0] = 1;
-        badgeIds[1] = 3;
-
-        LearnWayBadge.BadgeTier[] memory tiers = new LearnWayBadge.BadgeTier[](3);
-        tiers[0] = LearnWayBadge.BadgeTier.GOLD;
-        tiers[1] = LearnWayBadge.BadgeTier.SILVER;
-        tiers[2] = LearnWayBadge.BadgeTier.BRONZE;
-
-        vm.expectRevert("Arrays length mismatch");
-        vm.prank(managerEOA);
-        badge.batchMintBadges(user1, badgeIds, tiers);
-    }
-
-    function test_BatchMintBadges_RevertsIfNotRegistered() public {
-        uint256[] memory badgeIds = new uint256[](1);
-        badgeIds[0] = 1;
-
-        LearnWayBadge.BadgeTier[] memory tiers = new LearnWayBadge.BadgeTier[](1);
-        tiers[0] = LearnWayBadge.BadgeTier.GOLD;
-
-        vm.expectRevert("User not registered");
-        vm.prank(managerEOA);
-        badge.batchMintBadges(user1, badgeIds, tiers);
-    }
 
     // ==================== BADGE UPGRADE TESTS ====================
 
@@ -889,45 +831,7 @@ contract LearnWayBadgeTest is Test {
         assertFalse(badge.userHasBadge(user3, 2));
     }
 
-    function test_ComplexScenario_BatchMintWithUpgrades() public {
-        vm.prank(managerEOA);
-        badge.registerUser(user1, true);
 
-        // Batch mint multiple dynamic badges
-        uint256[] memory badgeIds = new uint256[](3);
-        badgeIds[0] = 3; // Quiz Explorer (dynamic)
-        badgeIds[1] = 4; // Master of Levels (dynamic)
-        badgeIds[2] = 8; // Daily Claims (dynamic)
-
-        LearnWayBadge.BadgeTier[] memory tiers = new LearnWayBadge.BadgeTier[](3);
-        tiers[0] = LearnWayBadge.BadgeTier.BRONZE;
-        tiers[1] = LearnWayBadge.BadgeTier.BRONZE;
-        tiers[2] = LearnWayBadge.BadgeTier.BRONZE;
-
-        vm.prank(managerEOA);
-        badge.batchMintBadges(user1, badgeIds, tiers);
-
-        // Upgrade all of them
-        vm.startPrank(managerEOA);
-        badge.upgradeBadge(user1, 3, LearnWayBadge.BadgeTier.PLATINUM);
-        badge.upgradeBadge(user1, 4, LearnWayBadge.BadgeTier.GOLD);
-        badge.upgradeBadge(user1, 8, LearnWayBadge.BadgeTier.DIAMOND);
-        vm.stopPrank();
-
-        // Verify all upgrades
-        assertEq(
-            uint256(badge.getTokenAttributes(badge.userBadgeTokenId(user1, 3)).tier),
-            uint256(LearnWayBadge.BadgeTier.PLATINUM)
-        );
-        assertEq(
-            uint256(badge.getTokenAttributes(badge.userBadgeTokenId(user1, 4)).tier),
-            uint256(LearnWayBadge.BadgeTier.GOLD)
-        );
-        assertEq(
-            uint256(badge.getTokenAttributes(badge.userBadgeTokenId(user1, 8)).tier),
-            uint256(LearnWayBadge.BadgeTier.DIAMOND)
-        );
-    }
 
     function test_TokenCounter_IncrementsCorrectly() public {
         vm.startPrank(managerEOA);
