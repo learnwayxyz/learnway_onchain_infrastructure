@@ -23,7 +23,7 @@ contract SetBadgeURLsManual is Script {
         badgeContract.setBadgeImageURL(
             0,
             LearnWayBadge.BadgeTier.SILVER,
-            "https://ik.imagekit.io/wqbvwdo34/badges/StreaksRoutineMaster_i0AfiVswqW.svg"
+            "https://ik.imagekit.io/wqbvwdo34/badges/SilverKeyholder_cH_Dd3Whl.svg"
         );
         
         // Badge 0: Keyholder (Gold)

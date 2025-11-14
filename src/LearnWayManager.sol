@@ -143,13 +143,13 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     event BadgeMinted(address indexed user, uint256 badgeId, uint256 timestamp);
     event BadgeUpgraded(address indexed user, uint256 badgeId, uint256 timestamp);
     event KycStatusUpdated(address indexed user, bool kycStatus, uint256 timestamp);
-    event ContractsUpdated(address gemsContract, address badgesContract, uint256 timestamp);
+    event ContractsUpdated(address xpGemsContract, address badgesContract, uint256 timestamp);
 
     /* =========================
        CONTRACTS (external)
        ========================= */
     ILearnWayAdmin public adminContract;
-    ILearnwayXPGemsContract public gemsContract;
+    ILearnwayXPGemsContract public xpGemsContract;
     ILearnWayBadge public badgesContract;
 
     /* =========================
@@ -161,7 +161,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     modifier contractsSet() {
-        require(address(gemsContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
+        require(address(xpGemsContract) != address(0) && address(badgesContract) != address(0), "Contracts not set");
         _;
     }
 
@@ -180,7 +180,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     modifier userRegistered(address user) {
-        require(gemsContract.isRegistered(user), "User not registered");
+        require(xpGemsContract.isRegistered(user), "User not registered");
         _;
     }
 
@@ -205,13 +205,13 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
        ADMIN / SETTERS
        ========================= */
 
-    function setContracts(address _gemsContract, address _badgesContract) external onlyAdmin {
-        require(_gemsContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
+    function setContracts(address _xpGemsContract, address _badgesContract) external onlyAdmin {
+        require(_xpGemsContract != address(0) && _badgesContract != address(0), "Invalid contract addresses");
 
-        gemsContract = ILearnwayXPGemsContract(_gemsContract);
+        xpGemsContract = ILearnwayXPGemsContract(_xpGemsContract);
         badgesContract = ILearnWayBadge(_badgesContract);
 
-        emit ContractsUpdated(_gemsContract, _badgesContract, block.timestamp);
+        emit ContractsUpdated(_xpGemsContract, _badgesContract, block.timestamp);
     }
 
 
@@ -228,7 +228,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         nonReentrant
         whenNotPaused
     {
-        gemsContract.updateUserGemsXpAndStreak(user, newGems, newXp, newStreak);
+        xpGemsContract.updateUserGemsXpAndStreak(user, newGems, newXp, newStreak);
         emit UserDataUpdated(user, newGems, newXp, newStreak, block.timestamp);
     }
 
@@ -248,7 +248,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         ILearnwayXPGemsContract.TransactionType[] calldata txTypes,
         string[] calldata descriptions
     ) external onlyAdminOrManager validAddress(user) userRegistered(user) contractsSet nonReentrant whenNotPaused {
-        gemsContract.batchRecordTransactions(user, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
+        xpGemsContract.batchRecordTransactions(user, gemsAmounts, xpAmounts, badgesLists, txTypes, descriptions);
 
         for (uint256 i = 0; i < gemsAmounts.length; i++) {
             emit TransactionRecorded(user, gemsAmounts[i], xpAmounts[i], txTypes[i], block.timestamp);
@@ -267,9 +267,9 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         require(users.length == gemsAmounts.length, "Array length mismatch");
 
         for (uint256 i = 0; i < users.length; i++) {
-            if (!gemsContract.isRegistered(users[i])) continue;
+            if (!xpGemsContract.isRegistered(users[i])) continue;
 
-            gemsContract.batchRecordTransactions(
+            xpGemsContract.batchRecordTransactions(
                 users[i], gemsAmounts[i], xpAmounts[i], badgesLists[i], txTypes[i], descriptions[i]
             );
 
@@ -317,9 +317,9 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (gemsContract.isRegistered(user)) continue;
+            if (xpGemsContract.isRegistered(user)) continue;
 
-            gemsContract.registerUser(user, initialGems[i]);
+            xpGemsContract.registerUser(user, initialGems[i]);
             badgesContract.registerUser(user, kycStatuses[i]);
         }
     }
@@ -340,9 +340,9 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue;
+            if (!xpGemsContract.isRegistered(user)) continue;
 
-            gemsContract.updateUserGemsXpAndStreak(user, newGems[i], newXp[i], newStreaks[i]);
+            xpGemsContract.updateUserGemsXpAndStreak(user, newGems[i], newXp[i], newStreaks[i]);
             emit UserDataUpdated(user, newGems[i], newXp[i], newStreaks[i], block.timestamp);
         }
     }
@@ -359,7 +359,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue;
+            if (!xpGemsContract.isRegistered(user)) continue;
 
             badgesContract.mintBadge(user, badgeIds[i], tiers[i]);
             emit BadgeMinted(user, badgeIds[i], block.timestamp);
@@ -380,7 +380,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             address user = users[i];
             require(user != address(0), "Invalid address in batch");
 
-            if (!gemsContract.isRegistered(user)) continue;
+            if (!xpGemsContract.isRegistered(user)) continue;
 
             badgesContract.updateKycStatus(user, kycStatuses[i]);
             emit KycStatusUpdated(user, kycStatuses[i], block.timestamp);
@@ -407,9 +407,9 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             uint256 registrationOrder
         )
     {
-        if (address(gemsContract) != address(0)) {
-            (gems, xp, longestStreak,, createdAt, lastUpdated) = gemsContract.getUserInfo(user);
-            transactionCount = gemsContract.transactionCount(user);
+        if (address(xpGemsContract) != address(0)) {
+            (gems, xp, longestStreak,, createdAt, lastUpdated) = xpGemsContract.getUserInfo(user);
+            transactionCount = xpGemsContract.transactionCount(user);
         }
 
         if (address(badgesContract) != address(0)) {
@@ -433,8 +433,8 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             uint256 lastUpdated
         )
     {
-        if (address(gemsContract) != address(0)) {
-            return gemsContract.getUserInfo(user);
+        if (address(xpGemsContract) != address(0)) {
+            return xpGemsContract.getUserInfo(user);
         }
         // All return values automatically default to 0/false
     }
@@ -472,21 +472,21 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     function getUserGems(address user) external view returns (uint256) {
-        return address(gemsContract) != address(0) ? gemsContract.gemsOf(user) : 0;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.gemsOf(user) : 0;
     }
 
     function getUserXp(address user) external view returns (uint256) {
-        return address(gemsContract) != address(0) ? gemsContract.xpOf(user) : 0;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.xpOf(user) : 0;
     }
 
     function getUserStreak(address user) external view returns (uint256) {
-        return address(gemsContract) != address(0) ? gemsContract.streakOf(user) : 0;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.streakOf(user) : 0;
     }
 
     // Transaction view functions
     function getUserTransactions(address user) external view returns (ILearnwayXPGemsContract.Transaction[] memory) {
-        return address(gemsContract) != address(0)
-            ? gemsContract.getUserTransactions(user)
+        return address(xpGemsContract) != address(0)
+            ? xpGemsContract.getUserTransactions(user)
             : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
@@ -495,8 +495,8 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         view
         returns (ILearnwayXPGemsContract.Transaction memory)
     {
-        require(address(gemsContract) != address(0), "Gems contract not set");
-        return gemsContract.getUserTransaction(user, index);
+        require(address(xpGemsContract) != address(0), "Gems contract not set");
+        return xpGemsContract.getUserTransaction(user, index);
     }
 
     function getUserTransactionsByType(address user, ILearnwayXPGemsContract.TransactionType txType)
@@ -504,8 +504,8 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         view
         returns (ILearnwayXPGemsContract.Transaction[] memory)
     {
-        return address(gemsContract) != address(0)
-            ? gemsContract.getUserTransactionsByType(user, txType)
+        return address(xpGemsContract) != address(0)
+            ? xpGemsContract.getUserTransactionsByType(user, txType)
             : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
@@ -514,13 +514,13 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         view
         returns (ILearnwayXPGemsContract.Transaction[] memory)
     {
-        return address(gemsContract) != address(0)
-            ? gemsContract.getUserRecentTransactions(user, count)
+        return address(xpGemsContract) != address(0)
+            ? xpGemsContract.getUserRecentTransactions(user, count)
             : new ILearnwayXPGemsContract.Transaction[](0);
     }
 
     function getUserTransactionCount(address user) external view returns (uint256) {
-        return address(gemsContract) != address(0) ? gemsContract.transactionCount(user) : 0;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.transactionCount(user) : 0;
     }
 
     function getUserBadges(address user) external view returns (uint256[] memory) {
@@ -532,7 +532,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     function isUserRegistered(address user) external view returns (bool) {
-        return address(gemsContract) != address(0) ? gemsContract.isRegistered(user) : false;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.isRegistered(user) : false;
     }
 
 
@@ -556,11 +556,11 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     function getTotalUsers() external view returns (uint256) {
-        return address(gemsContract) != address(0) ? gemsContract.totalRegisteredUsers() : 0;
+        return address(xpGemsContract) != address(0) ? xpGemsContract.totalRegisteredUsers() : 0;
     }
 
     function getContractAddresses() external view returns (address gemsAddr, address badgesAddr) {
-        return (address(gemsContract), address(badgesContract));
+        return (address(xpGemsContract), address(badgesContract));
     }
 
     /* =========================
