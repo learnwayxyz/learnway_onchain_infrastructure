@@ -113,6 +113,7 @@ interface ILearnWayBadge {
         bool isRegistered;
         bool kycVerified;
         uint256 registrationOrder;
+        uint256 kycOrder;           
         uint256 totalBadgesEarned;
     }
 
