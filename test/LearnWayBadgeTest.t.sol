@@ -459,7 +459,7 @@ contract LearnWayBadgeTest is Test {
         assertFalse(kycVerified);
 
         // Check Keyholder badge downgraded
-        uint256 tokenId = badge.userBadgeTokenId(user1, 0);
+        uint256 tokenId = badge.userBadgeTokenId(user1, 1);
         LearnWayBadge.BadgeAttributes memory attrs = badge.getTokenAttributes(tokenId);
         assertEq(uint256(attrs.tier), uint256(LearnWayBadge.BadgeTier.SILVER));
     }

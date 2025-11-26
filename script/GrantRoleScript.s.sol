@@ -14,7 +14,7 @@ interface ILearnWayAdmin {
 
 contract GrantRoleScript is Script {
     // Deployed proxy contract
-    address public constant proxyAddress = 0x16411638D1f311447eD0BCAdC5bdB7BF31e13ab4;
+    // address public constant proxyAddress = 0x120D60993d6768fCa20e7B0Ee1266Fb0a6470109;
 
     // Example target accounts (you can modify or extend this list)
     address public constant targetAccount1 = 0xe735e92D7cad4c59BD8A819Ac53d3b77843EF9ca;
@@ -26,6 +26,7 @@ contract GrantRoleScript is Script {
     function run() external {
         // Load deployer private key from .env file
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address proxyAddress = vm.envAddress("ADMIN_PROXY_ADDRESS");
 
         // Start broadcasting transactions with deployer's key
         vm.startBroadcast(deployerPrivateKey);
@@ -33,7 +34,7 @@ contract GrantRoleScript is Script {
         ILearnWayAdmin learnway = ILearnWayAdmin(proxyAddress);
 
         // Choose which role to grant (change ADMIN_ROLE to MANAGER_ROLE etc.)
-        // bytes32 varOcg = learnway.ADMIN_ROLE();
+        bytes32 varOcg = learnway.ADMIN_ROLE();
         bytes32 varMag = learnway.MANAGER_ROLE();
 
         // Create an array of target addresses
@@ -43,7 +44,7 @@ contract GrantRoleScript is Script {
 
         // Grant the role to each address in a loop
         for (uint256 i = 0; i < accounts.length; i++) {
-            // learnway.setUpRole(varOcg, accounts[i]);
+            learnway.setUpRole(varOcg, accounts[i]);
             learnway.setUpRole(varMag, accounts[i]);
         }
 

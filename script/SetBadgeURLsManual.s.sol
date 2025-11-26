@@ -19,177 +19,187 @@ contract SetBadgeURLsManual is Script {
         LearnWayBadge badgeContract = LearnWayBadge(badgeContractAddress);
         
         // Set individual badge URLs
-        // Badge 0: Keyholder (Silver)
+        // NOTE: Badge IDs now start from 1 (not 0)
+        
+        // Badge 1: Keyholder (Silver)
         badgeContract.setBadgeImageURL(
-            0,
+            1,
             LearnWayBadge.BadgeTier.SILVER,
             "https://ik.imagekit.io/wqbvwdo34/badges/SilverKeyholder_cH_Dd3Whl.svg"
         );
         
-        // Badge 0: Keyholder (Gold)
+        // Badge 1: Keyholder (Gold)
         badgeContract.setBadgeImageURL(
-            0,
+            1,
             LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/wqbvwdo34/badges/GoldKeyholder_nEvwt1qVi.svg"
         );
         
-        // Badge 1: First Spark
+        // Badge 2: First Spark
         badgeContract.setBadgeImageURL(
-            1,
+            2,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/FirstSpark_uOj9dts8D.svg"
         );
         
-        // Badge 2: Early Bird
+        // Badge 3: Early Bird
         badgeContract.setBadgeImageURL(
-            2,
+            3,
             LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/wqbvwdo34/badges/EarlyBird_HAOtsKKG1-.svg"
         );
         
-        // Badge 3: Quiz Explorer
+        // Badge 4: Quiz Explorer
         badgeContract.setBadgeImageURL(
-            3,
+            4,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/QuizExplorer_3sxw-AM1Z.svg"
         );
         
-        // Badge 4: Master of Levels
+        // Badge 5: Master of Levels
         badgeContract.setBadgeImageURL(
-            4,
+            5,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/MasterOfLevels_mO-EokdYc.svg"
         );
         
-        // Badge 5: Quiz Titan
+        // Badge 6: Quiz Titan
         badgeContract.setBadgeImageURL(
-            5,
+            6,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/QuizTitans_Cjd6NQ32G.svg"
         );
         
-        // Badge 6: BRAINIAC
+        // Badge 7: BRAINIAC
         badgeContract.setBadgeImageURL(
-            6,
+            7,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/Brainiac_eIE08H6Dr.svg"
         );
         
-        // Badge 7: Legend
+        // Badge 8: Legend
         badgeContract.setBadgeImageURL(
-            7,
+            8,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/Legend_wdfiNd7-f.svg"
         );
         
-        // Badge 8: Daily Claims
+        // Badge 9: Daily Claims
         badgeContract.setBadgeImageURL(
-            8,
+            9,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/DailyClaims_kvSrakbkl.svg"
         );
         
-        // Badge 9: Routine Master (Streaks Routine Master)
+        // Badge 10: Routine Master (Streaks Routine Master)
         badgeContract.setBadgeImageURL(
-            9,
+            10,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/StreaksRoutineMaster_i0AfiVswqW.svg"
         );
         
-        // Badge 10: Quiz Devotee
+        // Badge 11: Quiz Devotee
         badgeContract.setBadgeImageURL(
-            10,
+            11,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/QuizDevotee_xTWy1KNh2.svg"
         );
         
-        // Badge 11: Elite
+        // Badge 12: Elite
         badgeContract.setBadgeImageURL(
-            11,
+            12,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/Elite_NVbf8d-eN.svg"
         );
         
-        // Badge 12: Duel Champion
+        // Badge 13: Duel Champion
         badgeContract.setBadgeImageURL(
-            12,
+            13,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/DuelChampion_GqtqSxDFu.svg"
         );
         
-        // Badge 13: Squad Slayer
+        // Badge 14: Squad Slayer
         badgeContract.setBadgeImageURL(
-            13,
+            14,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/SquadSlayer__FDy5_B2Y.svg"
         );
         
-        // Badge 15: Rising Star
+        // Badge 15: Crown Holder
+        // NOTE: Add URL when available
+        // badgeContract.setBadgeImageURL(
+        //     15,
+        //     LearnWayBadge.BadgeTier.BRONZE,
+        //     "https://ik.imagekit.io/wqbvwdo34/badges/CrownHolder_PLACEHOLDER.svg"
+        // );
+        
+        // Badge 16: Rising Star
         badgeContract.setBadgeImageURL(
-            15,
+            16,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/RisingStar_mleCCG9Uz.svg"
         );
         
-        // Badge 16: DeFi Voyager
+        // Badge 17: DeFi Voyager
         badgeContract.setBadgeImageURL(
-            16,
+            17,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/DefiVoyager_xQuuE7egs.svg"
         );
         
-        // Badge 17: Savings Champion
+        // Badge 18: Savings Champion
         badgeContract.setBadgeImageURL(
-            17,
+            18,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/SavingsChampion_cGFSRUE6m.svg"
         );
         
-        // Badge 18: Power Elite
+        // Badge 19: Power Elite
         badgeContract.setBadgeImageURL(
-            18,
+            19,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/PowerElite_o3xtjJqZv.svg"
         );
         
-        // Badge 19: Community Connector
+        // Badge 20: Community Connector
         badgeContract.setBadgeImageURL(
-            19,
+            20,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/CommunityConnector_FFW7Jj9HG.svg"
         );
         
-        // Badge 20: Echo Spreader
+        // Badge 21: Echo Spreader
         badgeContract.setBadgeImageURL(
-            20,
+            21,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/EchoSpreader_p-2FqOeLd6.svg"
         );
         
-        // Badge 21: Event Star (Silver)
+        // Badge 22: Event Star (Silver)
         badgeContract.setBadgeImageURL(
-            21,
+            22,
             LearnWayBadge.BadgeTier.SILVER,
             "https://ik.imagekit.io/wqbvwdo34/badges/EventStarSilver_eajvcvwhk.svg"
         );
         
-        // Badge 21: Event Star (Gold)
+        // Badge 22: Event Star (Gold)
         badgeContract.setBadgeImageURL(
-            21,
+            22,
             LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/wqbvwdo34/badges/EventStar_Y4npXYoFE.svg"
         );
         
-        // Badge 22: Grandmaster
+        // Badge 23: Grandmaster
         badgeContract.setBadgeImageURL(
-            22,
+            23,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/GrandMaster_MpYe73kal.svg"
         );
         
-        // Badge 23: Hall of Famer
+        // Badge 24: Hall of Famer
         badgeContract.setBadgeImageURL(
-            23,
+            24,
             LearnWayBadge.BadgeTier.BRONZE,
             "https://ik.imagekit.io/wqbvwdo34/badges/HallOfFamer_Dvc18L5ay.svg"
         );

@@ -232,8 +232,9 @@ contract LearnWayBadge is
 
         uint8[24] memory maxSupplies = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
+        // Badge IDs now start from 1 instead of 0
         for (uint256 i = 0; i < 24; i++) {
-            badges[i] = Badge({
+            badges[i + 1] = Badge({
                 name: names[i],
                 category: categories[i],
                 isDynamic: isDynamic[i],
@@ -306,7 +307,7 @@ contract LearnWayBadge is
         emit UserRegistered(user, totalRegistrations, kycStatus, true);
 
         BadgeTier keyholderTier = kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER;
-        _mintBadge(user, 0, keyholderTier);
+        _mintBadge(user, 1, keyholderTier); // Changed from 0 to 1
     }
 
     function mintBadge(address user, uint256 badgeId, BadgeTier tier) external onlyManager nonReentrant {
@@ -316,7 +317,7 @@ contract LearnWayBadge is
 
 
     function _mintBadge(address user, uint256 badgeId, BadgeTier tier) internal {
-        require(badgeId < 24, "Invalid badge ID");
+        require(badgeId >= 1 && badgeId <= 24, "Invalid badge ID"); // Changed validation
         require(!userHasBadge[user][badgeId], "User already has this badge");
 
         Badge storage badge = badges[badgeId];
@@ -325,8 +326,8 @@ contract LearnWayBadge is
             revert("Badge max supply reached");
         }
 
-        // UPDATED: Early Bird logic now based on KYC completion order
-        if (badgeId == 2) {
+        // UPDATED: Early Bird logic now based on KYC completion order (badgeId 3 is Early Bird)
+        if (badgeId == 3) { // Changed from 2 to 3
             require(userInfo[user].kycVerified, "Early Bird requires KYC");
             require(userInfo[user].kycOrder > 0, "KYC order not set");
             require(userInfo[user].kycOrder <= maxEarlyBirdSpots, "Not eligible for Early Bird");
@@ -393,12 +394,12 @@ contract LearnWayBadge is
             userInfo[user].kycOrder = totalKycCompletions;
         }
 
-        if (userHasBadge[user][0]) {
-            _updateBadgeTier(user, 0, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
+        if (userHasBadge[user][1]) { // Changed from 0 to 1 (Keyholder)
+            _updateBadgeTier(user, 1, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
         // if your kycstatus is true and the early bird badge has not reach the maxsupply then mint the early bird badge
-        if (kycStatus && !userHasBadge[user][2] && userInfo[user].kycOrder <= maxEarlyBirdSpots) {
-              _mintBadge(user, 2, BadgeTier.GOLD);
+        if (kycStatus && !userHasBadge[user][3] && userInfo[user].kycOrder <= maxEarlyBirdSpots) { // Changed from 2 to 3 (Early Bird)
+              _mintBadge(user, 3, BadgeTier.GOLD);
         }
         emit KycStatusUpdated(user, kycStatus, userInfo[user].kycOrder, true);
     }
@@ -412,29 +413,29 @@ contract LearnWayBadge is
     }
 
     function _getBadgeStatus(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
-        if (badgeId == 0) {
+        if (badgeId == 1) { // Keyholder
             return tier == BadgeTier.GOLD ? "Verified Member" : "Basic Member";
-        } else if (badgeId == 1) {
+        } else if (badgeId == 2) { // First Spark
             return "Completed first quiz on LearnWay platform";
-        } else if (badgeId == 2) {
+        } else if (badgeId == 3) { // Early Bird
             return "One of the first 1000 verified members of LearnWay";
-        } else if (badgeId == 3) {
+        } else if (badgeId == 4) { // Quiz Explorer
             if (tier == BadgeTier.DIAMOND) return "Quiz Legend";
             if (tier == BadgeTier.PLATINUM) return "Quiz Master";
             if (tier == BadgeTier.GOLD) return "Advanced Explorer";
             if (tier == BadgeTier.SILVER) return "Explorer";
             return "Beginner Explorer";
-        } else if (badgeId == 4) {
+        } else if (badgeId == 5) { // Master of Levels
             if (tier == BadgeTier.GOLD) return "Level Master";
             if (tier == BadgeTier.SILVER) return "Level Expert";
             return "Level Climber";
-        } else if (badgeId == 8) {
+        } else if (badgeId == 9) { // Daily Claims
             if (tier == BadgeTier.DIAMOND) return "Legendary Streak";
             if (tier == BadgeTier.PLATINUM) return "Epic Streak";
             if (tier == BadgeTier.GOLD) return "Golden Streak";
             if (tier == BadgeTier.SILVER) return "Silver Streak";
             return "Active Streak";
-        } else if (badgeId == 11) {
+        } else if (badgeId == 12) { // Elite
             if (tier == BadgeTier.DIAMOND) return "Diamond Elite";
             if (tier == BadgeTier.PLATINUM) return "Platinum Elite";
             if (tier == BadgeTier.GOLD) return "Gold Elite";
@@ -473,7 +474,7 @@ contract LearnWayBadge is
         registrationOrder = info.registrationOrder;
         kycOrder = info.kycOrder;
         isKycCompleted = info.kycVerified;
-        hasEarlyBirdBadge = userHasBadge[user][2];
+        hasEarlyBirdBadge = userHasBadge[user][3]; // Changed from 2 to 3
         isEligible = isKycCompleted && kycOrder > 0 && kycOrder <= maxEarlyBirdSpots && !hasEarlyBirdBadge;
         currentTotalKycCompletions = totalKycCompletions;
         currentMaxEarlyBirdSpots = maxEarlyBirdSpots;
@@ -578,17 +579,17 @@ contract LearnWayBadge is
     }
 
     function _getBadgeDescription(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
-        if (badgeId == 0) {
+        if (badgeId == 1) { // Keyholder
             return tier == BadgeTier.GOLD
                 ? "A verified LearnWay member with full platform access"
                 : "A registered LearnWay member";
-        } else if (badgeId == 1) {
+        } else if (badgeId == 2) { // First Spark
             return "Completed first quiz on LearnWay platform";
-        } else if (badgeId == 2) {
+        } else if (badgeId == 3) { // Early Bird
             return "One of the first 1000 verified members of LearnWay";
-        } else if (badgeId == 3) {
+        } else if (badgeId == 4) { // Quiz Explorer
             return "Dedicated quiz explorer on LearnWay";
-        } else if (badgeId == 8) {
+        } else if (badgeId == 9) { // Daily Claims
             return "Maintaining consistent daily activity";
         } else {
             return "LearnWay achievement badge for outstanding performance";
