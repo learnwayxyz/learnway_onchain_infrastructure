@@ -17,16 +17,25 @@ contract GrantRoleScript is Script {
     // address public constant proxyAddress = 0x120D60993d6768fCa20e7B0Ee1266Fb0a6470109;
 
     // Example target accounts (you can modify or extend this list)
-    address public constant targetAccount1 = 0xe735e92D7cad4c59BD8A819Ac53d3b77843EF9ca;
-    address public constant targetAccount2 = 0x8739B22Dd60EFDa57752f861324B3a59722F2F73;
-    address public constant targetAccount3 = 0x298AAA9A0822eB8117F9ea24D28c897E83415440;
-    address public constant targetAccount4 = 0x4131811b8a4237712905650985A7474F8f92b18b;
-    address public constant targetAccount5 = 0x988B225185b516DEF12A7Ec841abae9072ef4EE8;
+    // address public constant targetAccount1 = 0xe735e92D7cad4c59BD8A819Ac53d3b77843EF9ca;
+    // address public constant targetAccount2 = 0x8739B22Dd60EFDa57752f861324B3a59722F2F73;
+    address public constant targetAccount1 = 0x298AAA9A0822eB8117F9ea24D28c897E83415440;
+    address public constant targetAccount2 = 0x7Ce816337061f359Be88367dfD79f19Ad1Ff48d1;
+    // address public constant targetAccount5 = 0x988B225185b516DEF12A7Ec841abae9072ef4EE8;
 
     function run() external {
         // Load deployer private key from .env file
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address proxyAddress = vm.envAddress("ADMIN_PROXY_ADDRESS");
+        
+        // Try to get ADMIN_PROXY_ADDRESS from environment variable
+        // If not set, it will be provided by the deployment script
+        address proxyAddress;
+        try vm.envAddress("ADMIN_PROXY_ADDRESS") returns (address addr) {
+            proxyAddress = addr;
+            console.log("Using ADMIN_PROXY_ADDRESS from environment:", proxyAddress);
+        } catch {
+            revert("ADMIN_PROXY_ADDRESS not set. Please export it or run from deploy script.");
+        }
 
         // Start broadcasting transactions with deployer's key
         vm.startBroadcast(deployerPrivateKey);
@@ -38,9 +47,8 @@ contract GrantRoleScript is Script {
         bytes32 varMag = learnway.MANAGER_ROLE();
 
         // Create an array of target addresses
-        address[5] memory accounts = [
-            targetAccount1, targetAccount2, targetAccount3, targetAccount4, 
-            targetAccount5];
+        address[2] memory accounts = [
+            targetAccount1, targetAccount2];
 
         // Grant the role to each address in a loop
         for (uint256 i = 0; i < accounts.length; i++) {

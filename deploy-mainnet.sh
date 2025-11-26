@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LearnWay Deployment Script for Lisk Sepolia Testnet
+# LearnWay Deployment Script for Lisk Mainnet
 # This script deploys all LearnWay contracts and verifies them on Blockscout
 
 set -e  # Exit on any error
@@ -12,18 +12,19 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-RPC_URL="https://rpc.sepolia-api.lisk.com"
+# Configuration - LISK MAINNET
+RPC_URL="https://lisk.drpc.org"
 VERIFIER="blockscout"
-VERIFIER_URL="https://sepolia-blockscout.lisk.com/api/"
-CHAIN_ID=4202
+VERIFIER_URL="https://blockscout.lisk.com/api/"
+CHAIN_ID=1135
 
 # File to store deployment addresses
-DEPLOYMENT_FILE="deployment-addresses.txt"
+DEPLOYMENT_FILE="deployment-addresses-mainnet.txt"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}LearnWay Contract Deployment Script${NC}"
-echo -e "${BLUE}Network: Lisk Sepolia Testnet${NC}"
+echo -e "${RED}⚠️  MAINNET DEPLOYMENT - LISK MAINNET ⚠️${NC}"
+echo -e "${BLUE}Chain ID: $CHAIN_ID${NC}"
 echo -e "${BLUE}All contracts are upgradeable (UUPS)${NC}"
 echo -e "${BLUE}========================================${NC}\n"
 
@@ -40,6 +41,22 @@ if ! command -v forge &> /dev/null; then
     echo -e "${RED}Error: Foundry is not installed${NC}"
     echo -e "${YELLOW}Please install Foundry: https://book.getfoundry.sh/getting-started/installation${NC}"
     exit 1
+fi
+
+# Confirmation prompt for mainnet deployment
+echo -e "${RED}⚠️  WARNING: You are about to deploy to LISK MAINNET ⚠️${NC}"
+echo -e "${YELLOW}This will use real funds and deploy production contracts.${NC}"
+echo -e "${YELLOW}Please ensure you have:${NC}"
+echo -e "  1. Sufficient ETH for gas fees on Lisk Mainnet"
+echo -e "  2. Reviewed all contract code"
+echo -e "  3. Tested on testnet first"
+echo -e "  4. Backed up your private key securely"
+echo -e ""
+read -p "Are you sure you want to continue? (type 'YES' to proceed): " confirmation
+
+if [ "$confirmation" != "YES" ]; then
+    echo -e "${RED}Deployment cancelled.${NC}"
+    exit 0
 fi
 
 # Clean previous deployment file
@@ -93,7 +110,7 @@ fi
 # Save addresses to file
 {
     echo "# LearnWay Deployment Addresses - $(date)"
-    echo "# Network: Lisk Sepolia Testnet"
+    echo "# Network: Lisk Mainnet"
     echo "# All contracts are upgradeable using UUPS proxy pattern"
     echo ""
     echo "# Implementation Addresses"
@@ -116,7 +133,7 @@ echo -e "${GREEN}Deployment addresses saved to: $DEPLOYMENT_FILE${NC}"
 
 # Display deployment summary
 echo -e "\n${BLUE}========================================${NC}"
-echo -e "${BLUE}DEPLOYMENT COMPLETE!${NC}"
+echo -e "${BLUE}MAINNET DEPLOYMENT COMPLETE!${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}Implementation Addresses:${NC}"
 echo -e "  Admin:   $ADMIN_IMPL_ADDRESS"
@@ -227,7 +244,7 @@ if [ ! -z "$MANAGER_IMPL_ADDRESS" ] && [ ! -z "$MANAGER_ADDRESS" ] && [ ! -z "$A
 fi
 
 echo -e "\n${GREEN}========================================${NC}"
-echo -e "${GREEN}Deployment and verification complete!${NC}"
+echo -e "${GREEN}MAINNET Deployment and verification complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # Step 6: Grant roles to addresses
@@ -260,30 +277,41 @@ else
 fi
 
 echo -e "\n${GREEN}========================================${NC}"
-echo -e "${GREEN}All deployment steps completed!${NC}"
+echo -e "${GREEN}All MAINNET deployment steps completed!${NC}"
 echo -e "${GREEN}========================================${NC}"
 
-echo -e "\n${YELLOW}Next steps:${NC}"
-echo -e "1. Save the deployment addresses from $DEPLOYMENT_FILE"
-echo -e "2. Update your frontend/backend with the PROXY contract addresses"
-echo -e "3. Verify that roles were granted correctly"
-echo -e "4. Set badge image URLs by running:"
+echo -e "\n${RED}⚠️  IMPORTANT POST-DEPLOYMENT STEPS:${NC}"
+echo -e "${YELLOW}1. IMMEDIATELY save the deployment addresses from $DEPLOYMENT_FILE${NC}"
+echo -e "${YELLOW}2. Backup your private key securely${NC}"
+echo -e "${YELLOW}3. Update your production frontend/backend with the PROXY contract addresses${NC}"
+echo -e "${YELLOW}4. Verify that roles were granted correctly${NC}"
+echo -e "${YELLOW}5. Set badge image URLs by running:${NC}"
 echo -e "   ${BLUE}export BADGE_CONTRACT_ADDRESS=\$(grep '^BADGE_PROXY_ADDRESS=' $DEPLOYMENT_FILE | cut -d'=' -f2)${NC}"
 echo -e "   ${BLUE}forge script script/SetBadgeURLsManual.s.sol:SetBadgeURLsManual --rpc-url $RPC_URL --private-key \$PRIVATE_KEY --broadcast${NC}"
-echo -e "5. Set the base URI for badges if needed:"
-echo -e "   cast send $BADGE_ADDRESS \"setBaseTokenURI(string)\" \"https://your-api.com/badges/\" --private-key \$PRIVATE_KEY --rpc-url $RPC_URL"
-echo -e "6. Grant additional roles if needed through the Admin contract"
-echo -e "7. To upgrade contracts in the future, deploy new implementations and call upgradeToAndCall on the proxy"
+echo -e "${YELLOW}6. Set the base URI for badges:${NC}"
+echo -e "${YELLOW}7. Grant additional roles if needed through the Admin contract${NC}"
+echo -e "${YELLOW}8. Test all functionality on mainnet with small amounts first${NC}"
+echo -e "${YELLOW}9. Set up monitoring and alerts for your contracts${NC}"
+echo -e "${YELLOW}10. Document all admin operations and keep audit logs${NC}"
 
-echo -e "\n${BLUE}View your contracts on Blockscout:${NC}"
+echo -e "\n${BLUE}View your contracts on Lisk Blockscout:${NC}"
 echo -e "${BLUE}Implementation Contracts:${NC}"
-echo -e "  Admin:   https://sepolia-blockscout.lisk.com/address/$ADMIN_IMPL_ADDRESS"
-echo -e "  XPGems:  https://sepolia-blockscout.lisk.com/address/$XPGEMS_IMPL_ADDRESS"
-echo -e "  Badge:   https://sepolia-blockscout.lisk.com/address/$BADGE_IMPL_ADDRESS"
-echo -e "  Manager: https://sepolia-blockscout.lisk.com/address/$MANAGER_IMPL_ADDRESS"
+echo -e "  Admin:   https://blockscout.lisk.com/address/$ADMIN_IMPL_ADDRESS"
+echo -e "  XPGems:  https://blockscout.lisk.com/address/$XPGEMS_IMPL_ADDRESS"
+echo -e "  Badge:   https://blockscout.lisk.com/address/$BADGE_IMPL_ADDRESS"
+echo -e "  Manager: https://blockscout.lisk.com/address/$MANAGER_IMPL_ADDRESS"
 echo -e ""
-echo -e "${BLUE}Proxy Contracts (Use these):${NC}"
-echo -e "  Admin:   https://sepolia-blockscout.lisk.com/address/$ADMIN_ADDRESS"
-echo -e "  XPGems:  https://sepolia-blockscout.lisk.com/address/$XPGEMS_ADDRESS"
-echo -e "  Badge:   https://sepolia-blockscout.lisk.com/address/$BADGE_ADDRESS"
-echo -e "  Manager: https://sepolia-blockscout.lisk.com/address/$MANAGER_ADDRESS"
+echo -e "${BLUE}Proxy Contracts (Use these for all interactions):${NC}"
+echo -e "  Admin:   https://blockscout.lisk.com/address/$ADMIN_ADDRESS"
+echo -e "  XPGems:  https://blockscout.lisk.com/address/$XPGEMS_ADDRESS"
+echo -e "  Badge:   https://blockscout.lisk.com/address/$BADGE_ADDRESS"
+echo -e "  Manager: https://blockscout.lisk.com/address/$MANAGER_ADDRESS"
+
+echo -e "\n${GREEN}To upgrade contracts in the future:${NC}"
+echo -e "1. Deploy new implementation contracts"
+echo -e "2. Call upgradeToAndCall on the proxy with the new implementation address"
+echo -e "3. Always test upgrades on testnet first!"
+
+echo -e "\n${BLUE}========================================${NC}"
+echo -e "${GREEN}Deployment script completed successfully!${NC}"
+echo -e "${BLUE}========================================${NC}"
