@@ -21,7 +21,7 @@ contract GrantRoleScript is Script {
     // address public constant targetAccount2 = 0x8739B22Dd60EFDa57752f861324B3a59722F2F73;
     address public constant targetAccount1 = 0x298AAA9A0822eB8117F9ea24D28c897E83415440;
     address public constant targetAccount2 = 0x7Ce816337061f359Be88367dfD79f19Ad1Ff48d1;
-    // address public constant targetAccount5 = 0x988B225185b516DEF12A7Ec841abae9072ef4EE8;
+    address public constant targetAccount3 = 0xF295F0700e643000C9f816536B9092FbD13D05D4;
 
     function run() external {
         // Load deployer private key from .env file
@@ -47,8 +47,8 @@ contract GrantRoleScript is Script {
         bytes32 varMag = learnway.MANAGER_ROLE();
 
         // Create an array of target addresses
-        address[2] memory accounts = [
-            targetAccount1, targetAccount2];
+        address[3] memory accounts = [
+            targetAccount1, targetAccount2, targetAccount3];
 
         // Grant the role to each address in a loop
         for (uint256 i = 0; i < accounts.length; i++) {
