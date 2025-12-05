@@ -108,21 +108,21 @@ contract SetBadgeURLsManual is Script {
         // Badge 12: Elite
         badgeContract.setBadgeImageURL(
             12,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.DIAMOND,
             "https://ik.imagekit.io/fb8vzvdeb/badges/Elite_NVbf8d-eN.svg"
         );
         
         // Badge 13: Duel Champion
         badgeContract.setBadgeImageURL(
             13,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.SILVER,
             "https://ik.imagekit.io/fb8vzvdeb/badges/DuelChampion_GqtqSxDFu.svg"
         );
         
         // Badge 14: Squad Slayer
         badgeContract.setBadgeImageURL(
             14,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/fb8vzvdeb/badges/SquadSlayer__FDy5_B2Y.svg"
         );
         
@@ -144,21 +144,21 @@ contract SetBadgeURLsManual is Script {
         // Badge 17: DeFi Voyager
         badgeContract.setBadgeImageURL(
             17,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.SILVER,
             "https://ik.imagekit.io/fb8vzvdeb/badges/DefiVoyager_xQuuE7egs.svg"
         );
         
         // Badge 18: Savings Champion
         badgeContract.setBadgeImageURL(
             18,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/fb8vzvdeb/badges/SavingsChampion_cGFSRUE6m.svg"
         );
         
         // Badge 19: Power Elite
         badgeContract.setBadgeImageURL(
             19,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.DIAMOND,
             "https://ik.imagekit.io/fb8vzvdeb/badges/PowerElite_o3xtjJqZv.svg"
         );
         
@@ -172,14 +172,14 @@ contract SetBadgeURLsManual is Script {
         // Badge 21: Echo Spreader
         badgeContract.setBadgeImageURL(
             21,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.SILVER,
             "https://ik.imagekit.io/fb8vzvdeb/badges/EchoSpreader_p-2FqOeLd6.svg"
         );
         
-        // Badge 22: Event Star (Silver)
+        // Badge 22: Event Star (DIAMOND)
         badgeContract.setBadgeImageURL(
             22,
-            LearnWayBadge.BadgeTier.SILVER,
+            LearnWayBadge.BadgeTier.DIAMOND,
             "https://ik.imagekit.io/fb8vzvdeb/badges/EventStarSilver_eajvcvwhk.svg"
         );
         
@@ -193,14 +193,14 @@ contract SetBadgeURLsManual is Script {
         // Badge 23: Grandmaster
         badgeContract.setBadgeImageURL(
             23,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/fb8vzvdeb/badges/GrandMaster_MpYe73kal.svg"
         );
         
         // Badge 24: Hall of Famer
         badgeContract.setBadgeImageURL(
             24,
-            LearnWayBadge.BadgeTier.BRONZE,
+            LearnWayBadge.BadgeTier.GOLD,
             "https://ik.imagekit.io/fb8vzvdeb/badges/HallOfFamer_Dvc18L5ay.svg"
         );
         
