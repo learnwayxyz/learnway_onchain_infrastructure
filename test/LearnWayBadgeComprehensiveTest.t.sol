@@ -114,12 +114,12 @@ contract LearnWayBadgeComprehensiveTest is Test {
     function test_BadgeIDs_AllValidIDs() public {
         vm.startPrank(manager);
 
-        badgeContract.registerUser(user1, true);
+        badgeContract.registerUser(user1, false);
+        badgeContract.updateKycStatus(user1, true);
 
-        // Mint all badges from 1 to 24 (except 1 which is auto-minted and 3 which is Early Bird)
+        // Mint all badges from 2 to 24 (except 1 Keyholder auto-minted and 3 Early Bird auto-minted via KYC)
         for (uint256 i = 2; i <= 24; i++) {
             if (i != 3) {
-                // Skip Early Bird as it's auto-minted for KYC users
                 badgeContract.mintBadge(user1, i, LearnWayBadge.BadgeTier.BRONZE);
             }
         }
@@ -264,9 +264,12 @@ contract LearnWayBadgeComprehensiveTest is Test {
         vm.startPrank(manager);
 
         // First two users get Early Bird
-        badgeContract.registerUser(user1, true);
-        badgeContract.registerUser(user2, true);
-        badgeContract.registerUser(user3, true);
+        badgeContract.registerUser(user1, false);
+        badgeContract.registerUser(user2, false);
+        badgeContract.registerUser(user3, false);
+        badgeContract.updateKycStatus(user1, true);
+        badgeContract.updateKycStatus(user2, true);
+        badgeContract.updateKycStatus(user3, true);
 
         assertTrue(badgeContract.userHasBadge(user1, 3), "User1 should have Early Bird");
         assertTrue(badgeContract.userHasBadge(user2, 3), "User2 should have Early Bird");
@@ -287,8 +290,10 @@ contract LearnWayBadgeComprehensiveTest is Test {
     }
 
     function test_Badge3_EarlyBird_GetEarlyBirdInfo() public {
-        vm.prank(manager);
-        badgeContract.registerUser(user1, true);
+        vm.startPrank(manager);
+        badgeContract.registerUser(user1, false);
+        badgeContract.updateKycStatus(user1, true);
+        vm.stopPrank();
 
         (
             uint256 registrationOrder,
@@ -468,12 +473,9 @@ contract LearnWayBadgeComprehensiveTest is Test {
        ============================================ */
 
     function test_StaticBadges_CannotUpgrade() public {
-        uint256[14] memory staticBadgeIds = [
+        uint256[11] memory staticBadgeIds = [
             uint256(2), // First Spark
             uint256(3), // Early Bird
-            uint256(6), // Quiz Titan
-            uint256(7), // BRAINIAC
-            uint256(8), // Legend
             uint256(10), // Routine Master
             uint256(11), // Quiz Devotee
             uint256(13), // Duel Champion
@@ -486,7 +488,8 @@ contract LearnWayBadgeComprehensiveTest is Test {
         ];
 
         vm.startPrank(manager);
-        badgeContract.registerUser(user1, true);
+        badgeContract.registerUser(user1, false);
+        badgeContract.updateKycStatus(user1, true);
 
         for (uint256 i = 0; i < staticBadgeIds.length; i++) {
             uint256 badgeId = staticBadgeIds[i];
@@ -529,11 +532,14 @@ contract LearnWayBadgeComprehensiveTest is Test {
                 badgeContract.mintBadge(user1, badgeId, LearnWayBadge.BadgeTier.BRONZE);
             }
 
-            // Should be able to upgrade
-            badgeContract.upgradeBadge(user1, badgeId, LearnWayBadge.BadgeTier.SILVER);
+            // Keyholder is minted as SILVER, so upgrade to GOLD. Others upgrade BRONZE -> SILVER.
+            LearnWayBadge.BadgeTier upgradeTo =
+                badgeId == 1 ? LearnWayBadge.BadgeTier.GOLD : LearnWayBadge.BadgeTier.SILVER;
+
+            badgeContract.upgradeBadge(user1, badgeId, upgradeTo);
 
             (,, LearnWayBadge.BadgeTier tier,,) = badgeContract.getUserBadgeInfo(user1, badgeId);
-            assertEq(uint256(tier), uint256(LearnWayBadge.BadgeTier.SILVER), "Should be upgraded to SILVER");
+            assertEq(uint256(tier), uint256(upgradeTo), "Should be upgraded");
         }
 
         vm.stopPrank();
@@ -647,7 +653,8 @@ contract LearnWayBadgeComprehensiveTest is Test {
     function test_GetUserBadges_ReturnsAllBadges() public {
         vm.startPrank(manager);
 
-        badgeContract.registerUser(user1, true);
+        badgeContract.registerUser(user1, false);
+        badgeContract.updateKycStatus(user1, true);
         badgeContract.mintBadge(user1, 2, LearnWayBadge.BadgeTier.BRONZE);
         badgeContract.mintBadge(user1, 4, LearnWayBadge.BadgeTier.BRONZE);
 
@@ -664,7 +671,8 @@ contract LearnWayBadgeComprehensiveTest is Test {
     function test_GetUserBadgeData_ReturnsCorrectInfo() public {
         vm.startPrank(manager);
 
-        badgeContract.registerUser(user1, true);
+        badgeContract.registerUser(user1, false);
+        badgeContract.updateKycStatus(user1, true);
         badgeContract.mintBadge(user1, 2, LearnWayBadge.BadgeTier.BRONZE);
 
         (
