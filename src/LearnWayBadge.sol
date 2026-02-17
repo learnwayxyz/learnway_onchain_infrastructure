@@ -102,6 +102,7 @@ contract LearnWayBadge is
     event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, bool status);
     event BadgeImageURLSet(uint256 indexed badgeId, BadgeTier tier, string imageURL, bool status);
     event BadgeImageURLsSet(uint256[] badgeIds, BadgeTier[] tiers, string[] imageURLs, bool status);
+    event MetadataUpdate(uint256 _tokenId);
 
     uint256[45] private _gap;
 
@@ -365,6 +366,7 @@ contract LearnWayBadge is
             attrs.status = _getBadgeStatus(badgeId, newTier);
 
             emit BadgeUpgraded(user, badgeId, tokenId, newTier, true);
+            emit MetadataUpdate(tokenId);
         }
     }
 
@@ -636,7 +638,7 @@ contract LearnWayBadge is
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721Upgradeable) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
     }
 
     function _baseURI() internal view override returns (string memory) {
@@ -644,6 +646,6 @@ contract LearnWayBadge is
     }
 
     function version() external pure returns (string memory) {
-        return "1.0.0";
+        return "1.0.1";
     }
 }

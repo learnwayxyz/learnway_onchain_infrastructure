@@ -83,7 +83,7 @@ contract LearnWayBadgeTest is Test {
         assertEq(address(badge.adminContract()), address(admin));
         assertEq(badge.maxEarlyBirdSpots(), 1000);
         assertEq(badge.totalRegistrations(), 0);
-        assertEq(badge.version(), "1.0.0");
+        assertEq(badge.version(), "1.0.1");
     }
 
     function test_Initialize_RevertsIfZeroAddress() public {
@@ -955,7 +955,7 @@ contract LearnWayBadgeTest is Test {
     }
 
     function test_Version() public view {
-        assertEq(badge.version(), "1.0.0");
+        assertEq(badge.version(), "1.0.1");
     }
 
     function test_BaseURI_ReturnsCorrectValue() public {
