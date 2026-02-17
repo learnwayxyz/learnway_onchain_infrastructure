@@ -26,7 +26,7 @@ contract GrantRoleScript is Script {
     function run() external {
         // Load deployer private key from .env file
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        
+
         // Try to get ADMIN_PROXY_ADDRESS from environment variable
         // If not set, it will be provided by the deployment script
         address proxyAddress;
@@ -47,8 +47,7 @@ contract GrantRoleScript is Script {
         bytes32 varMag = learnway.MANAGER_ROLE();
 
         // Create an array of target addresses
-        address[3] memory accounts = [
-            targetAccount1, targetAccount2, targetAccount3];
+        address[3] memory accounts = [targetAccount1, targetAccount2, targetAccount3];
 
         // Grant the role to each address in a loop
         for (uint256 i = 0; i < accounts.length; i++) {

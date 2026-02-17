@@ -143,12 +143,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
         uint256 currentTime = block.timestamp;
 
         _userData[user] = UserData({
-            user: user,
-            gems: gems,
-            xp: 0,
-            longestStreak: 0,
-            createdAt: currentTime,
-            lastUpdated: currentTime
+            user: user, gems: gems, xp: 0, longestStreak: 0, createdAt: currentTime, lastUpdated: currentTime
         });
 
         _isRegistered[user] = true;
@@ -554,6 +549,7 @@ contract LearnwayXPGemsContract is Initializable, ReentrancyGuardUpgradeable, Pa
             usersData[i] = _userData[users[i]];
         }
     }
+
     // ===== NEW: COUNT-BY-TYPE VIEW FUNCTIONS =====
 
     /**

@@ -316,8 +316,6 @@ contract LearnWayBadgeTest is Test {
         badge.mintBadge(user3, 2, LearnWayBadge.BadgeTier.GOLD);
     }
 
-
-
     function test_GetEarlyBirdInfo() public {
         vm.prank(managerEOA);
         badge.registerUser(user1, true);
@@ -361,12 +359,6 @@ contract LearnWayBadgeTest is Test {
         vm.prank(stranger);
         badge.setMaxEarlyBirdSpots(500);
     }
-
-
-
-
-
-
 
     // ==================== BADGE UPGRADE TESTS ====================
 
@@ -432,8 +424,6 @@ contract LearnWayBadgeTest is Test {
         vm.prank(managerEOA);
         badge.registerUser(user1, false);
 
-
-
         vm.prank(managerEOA);
         badge.updateKycStatus(user1, true);
 
@@ -449,8 +439,6 @@ contract LearnWayBadgeTest is Test {
     function test_UpdateKycStatus_FromTrueToFalse() public {
         vm.prank(managerEOA);
         badge.registerUser(user1, true);
-
-
 
         vm.prank(managerEOA);
         badge.updateKycStatus(user1, false);
@@ -830,8 +818,6 @@ contract LearnWayBadgeTest is Test {
         assertEq(badge.totalKycCompletions(), 3);
         assertFalse(badge.userHasBadge(user3, 2));
     }
-
-
 
     function test_TokenCounter_IncrementsCorrectly() public {
         vm.startPrank(managerEOA);

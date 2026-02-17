@@ -431,7 +431,6 @@ contract LearnwayXPGemsContractMoreTest is Test {
         vm.prank(admin);
         xpg2.initialize(address(admin2));
 
-
         // Try pause -> should revert UnauthorizedAdmin
         vm.expectRevert();
         xpg2.pause();
