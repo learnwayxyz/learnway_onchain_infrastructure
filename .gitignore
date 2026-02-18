@@ -19,5 +19,4 @@ scripts/.env.local
 
 scripts/node_modules
 .env
-/broadcast
 /eth-eoa/node_modules
