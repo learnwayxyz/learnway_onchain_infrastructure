@@ -15,6 +15,7 @@ docs/
 # Dotenv file
 scripts/.env.local
 .env.*
+!.env.example
 
 scripts/node_modules
 .env

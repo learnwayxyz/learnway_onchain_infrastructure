@@ -4,10 +4,20 @@ out = "out"
 libs = ["lib"]
 solc = "0.8.22"
 optimizer = true
-# optimizer_runs = 200
+optimizer_runs = 150
 via_ir = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 fs_permissions = [
   { access = "read", path = "./eth-eoa/active_eoa_addresses.json" }
 ]
+
+[rpc_endpoints]
+lisk_sepolia = "https://rpc.sepolia-api.lisk.com"
+lisk_mainnet = "https://rpc.api.lisk.com"
+
+# Note: these are ignored by forge verify-contract for unknown chains (4202).
+# Always pass --verifier blockscout --verifier-url <url> --chain <chain> explicitly when verifying.
+[etherscan]
+lisk_sepolia = { key = "ABCDEFG", url = "https://sepolia-blockscout.lisk.com/api/" }
+lisk_mainnet = { key = "ABCDEFG", url = "https://blockscout.lisk.com/api/" }
