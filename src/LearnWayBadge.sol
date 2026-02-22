@@ -88,7 +88,7 @@ contract LearnWayBadge is
     mapping(uint256 => BadgeAttributes) public tokenAttributes;
     mapping(address => uint256[]) public userBadgeList;
     mapping(uint256 => address) public tokenToOwner;
-    
+
     // NEW: Image URL mapping for flexible badge image management
     mapping(uint256 => mapping(BadgeTier => string)) public badgeImageURLs;
 
@@ -102,6 +102,7 @@ contract LearnWayBadge is
     event EarlyBirdLimitUpdated(uint256 oldLimit, uint256 newLimit, bool status);
     event BadgeImageURLSet(uint256 indexed badgeId, BadgeTier tier, string imageURL, bool status);
     event BadgeImageURLsSet(uint256[] badgeIds, BadgeTier[] tiers, string[] imageURLs, bool status);
+    event MetadataUpdate(uint256 _tokenId);
 
     uint256[45] private _gap;
 
@@ -252,12 +253,10 @@ contract LearnWayBadge is
      */
     function setBadgeImageURL(uint256 badgeId, BadgeTier tier, string calldata imageURL) external onlyAdmin {
         require(bytes(imageURL).length > 0, "Empty image URL");
-        
+
         badgeImageURLs[badgeId][tier] = imageURL;
         emit BadgeImageURLSet(badgeId, tier, imageURL, true);
     }
-
-
 
     /**
      * @dev Get the image URL for a specific badge and tier
@@ -267,22 +266,14 @@ contract LearnWayBadge is
      */
     function getBadgeImageURL(uint256 badgeId, BadgeTier tier) public view returns (string memory) {
         string memory imageURL = badgeImageURLs[badgeId][tier];
-        
+
         // If custom URL is set, use it
         if (bytes(imageURL).length > 0) {
             return imageURL;
         }
-        
+
         // Fallback to baseTokenURI construction
-        return string(
-            abi.encodePacked(
-                baseTokenURI,
-                badgeId.toString(),
-                "_",
-                uint256(tier).toString(),
-                ".svg"
-            )
-        );
+        return string(abi.encodePacked(baseTokenURI, badgeId.toString(), "_", uint256(tier).toString(), ".svg"));
     }
 
     function registerUser(address user, bool kycStatus) external onlyManager nonReentrant {
@@ -315,7 +306,6 @@ contract LearnWayBadge is
         _mintBadge(user, badgeId, tier);
     }
 
-
     function _mintBadge(address user, uint256 badgeId, BadgeTier tier) internal {
         require(badgeId >= 1 && badgeId <= 24, "Invalid badge ID"); // Changed validation
         require(!userHasBadge[user][badgeId], "User already has this badge");
@@ -327,7 +317,8 @@ contract LearnWayBadge is
         }
 
         // UPDATED: Early Bird logic now based on KYC completion order (badgeId 3 is Early Bird)
-        if (badgeId == 3) { // Changed from 2 to 3
+        if (badgeId == 3) {
+            // Changed from 2 to 3
             require(userInfo[user].kycVerified, "Early Bird requires KYC");
             require(userInfo[user].kycOrder > 0, "KYC order not set");
             require(userInfo[user].kycOrder <= maxEarlyBirdSpots, "Not eligible for Early Bird");
@@ -346,11 +337,7 @@ contract LearnWayBadge is
         string memory status = _getBadgeStatus(badgeId, tier);
 
         tokenAttributes[tokenId] = BadgeAttributes({
-            badgeId: badgeId,
-            tier: tier,
-            mintedAt: block.timestamp,
-            lastUpdated: block.timestamp,
-            status: status
+            badgeId: badgeId, tier: tier, mintedAt: block.timestamp, lastUpdated: block.timestamp, status: status
         });
 
         emit BadgeMinted(user, badgeId, tokenId, tier, true);
@@ -379,6 +366,7 @@ contract LearnWayBadge is
             attrs.status = _getBadgeStatus(badgeId, newTier);
 
             emit BadgeUpgraded(user, badgeId, tokenId, newTier, true);
+            emit MetadataUpdate(tokenId);
         }
     }
 
@@ -394,12 +382,14 @@ contract LearnWayBadge is
             userInfo[user].kycOrder = totalKycCompletions;
         }
 
-        if (userHasBadge[user][1]) { // Changed from 0 to 1 (Keyholder)
+        if (userHasBadge[user][1]) {
+            // Changed from 0 to 1 (Keyholder)
             _updateBadgeTier(user, 1, kycStatus ? BadgeTier.GOLD : BadgeTier.SILVER);
         }
         // if your kycstatus is true and the early bird badge has not reach the maxsupply then mint the early bird badge
-        if (kycStatus && !userHasBadge[user][3] && userInfo[user].kycOrder <= maxEarlyBirdSpots) { // Changed from 2 to 3 (Early Bird)
-              _mintBadge(user, 3, BadgeTier.GOLD);
+        if (kycStatus && !userHasBadge[user][3] && userInfo[user].kycOrder <= maxEarlyBirdSpots) {
+            // Changed from 2 to 3 (Early Bird)
+            _mintBadge(user, 3, BadgeTier.GOLD);
         }
         emit KycStatusUpdated(user, kycStatus, userInfo[user].kycOrder, true);
     }
@@ -413,29 +403,36 @@ contract LearnWayBadge is
     }
 
     function _getBadgeStatus(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
-        if (badgeId == 1) { // Keyholder
+        if (badgeId == 1) {
+            // Keyholder
             return tier == BadgeTier.GOLD ? "Verified Member" : "Basic Member";
-        } else if (badgeId == 2) { // First Spark
+        } else if (badgeId == 2) {
+            // First Spark
             return "Completed first quiz on LearnWay platform";
-        } else if (badgeId == 3) { // Early Bird
+        } else if (badgeId == 3) {
+            // Early Bird
             return "One of the first 1000 verified members of LearnWay";
-        } else if (badgeId == 4) { // Quiz Explorer
+        } else if (badgeId == 4) {
+            // Quiz Explorer
             if (tier == BadgeTier.DIAMOND) return "Quiz Legend";
             if (tier == BadgeTier.PLATINUM) return "Quiz Master";
             if (tier == BadgeTier.GOLD) return "Advanced Explorer";
             if (tier == BadgeTier.SILVER) return "Explorer";
             return "Beginner Explorer";
-        } else if (badgeId == 5) { // Master of Levels
+        } else if (badgeId == 5) {
+            // Master of Levels
             if (tier == BadgeTier.GOLD) return "Level Master";
             if (tier == BadgeTier.SILVER) return "Level Expert";
             return "Level Climber";
-        } else if (badgeId == 9) { // Daily Claims
+        } else if (badgeId == 9) {
+            // Daily Claims
             if (tier == BadgeTier.DIAMOND) return "Legendary Streak";
             if (tier == BadgeTier.PLATINUM) return "Epic Streak";
             if (tier == BadgeTier.GOLD) return "Golden Streak";
             if (tier == BadgeTier.SILVER) return "Silver Streak";
             return "Active Streak";
-        } else if (badgeId == 12) { // Elite
+        } else if (badgeId == 12) {
+            // Elite
             if (tier == BadgeTier.DIAMOND) return "Diamond Elite";
             if (tier == BadgeTier.PLATINUM) return "Platinum Elite";
             if (tier == BadgeTier.GOLD) return "Gold Elite";
@@ -454,7 +451,6 @@ contract LearnWayBadge is
 
         return super._update(to, tokenId, auth);
     }
-
 
     // UPDATED: Now returns kycOrder information
     function getEarlyBirdInfo(address user)
@@ -579,17 +575,22 @@ contract LearnWayBadge is
     }
 
     function _getBadgeDescription(uint256 badgeId, BadgeTier tier) internal pure returns (string memory) {
-        if (badgeId == 1) { // Keyholder
+        if (badgeId == 1) {
+            // Keyholder
             return tier == BadgeTier.GOLD
                 ? "A verified LearnWay member with full platform access"
                 : "A registered LearnWay member";
-        } else if (badgeId == 2) { // First Spark
+        } else if (badgeId == 2) {
+            // First Spark
             return "Completed first quiz on LearnWay platform";
-        } else if (badgeId == 3) { // Early Bird
+        } else if (badgeId == 3) {
+            // Early Bird
             return "One of the first 1000 verified members of LearnWay";
-        } else if (badgeId == 4) { // Quiz Explorer
+        } else if (badgeId == 4) {
+            // Quiz Explorer
             return "Dedicated quiz explorer on LearnWay";
-        } else if (badgeId == 9) { // Daily Claims
+        } else if (badgeId == 9) {
+            // Daily Claims
             return "Maintaining consistent daily activity";
         } else {
             return "LearnWay achievement badge for outstanding performance";
@@ -599,10 +600,16 @@ contract LearnWayBadge is
     function _getCategoryName(BadgeCategory category) internal pure returns (string memory) {
         if (category == BadgeCategory.ONBOARDING) return "Onboarding";
         if (category == BadgeCategory.QUIZ_COMPLETION) return "Quiz Completion";
-        if (category == BadgeCategory.STREAKS_CONSISTENCY) return "Streaks & Consistency";
-        if (category == BadgeCategory.BATTLES_CONTESTS) return "Battles & Contests";
+        if (category == BadgeCategory.STREAKS_CONSISTENCY) {
+            return "Streaks & Consistency";
+        }
+        if (category == BadgeCategory.BATTLES_CONTESTS) {
+            return "Battles & Contests";
+        }
         if (category == BadgeCategory.SKILL_MASTERY) return "Skill Mastery";
-        if (category == BadgeCategory.COMMUNITY_SHARING) return "Community & Sharing";
+        if (category == BadgeCategory.COMMUNITY_SHARING) {
+            return "Community & Sharing";
+        }
         return "Ultimate";
     }
 
@@ -631,7 +638,7 @@ contract LearnWayBadge is
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721Upgradeable) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
     }
 
     function _baseURI() internal view override returns (string memory) {
@@ -639,6 +646,6 @@ contract LearnWayBadge is
     }
 
     function version() external pure returns (string memory) {
-        return "1.0.0";
+        return "1.0.1";
     }
 }

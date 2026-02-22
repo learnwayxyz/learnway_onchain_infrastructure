@@ -113,7 +113,7 @@ interface ILearnWayBadge {
         bool isRegistered;
         bool kycVerified;
         uint256 registrationOrder;
-        uint256 kycOrder;           
+        uint256 kycOrder;
         uint256 totalBadgesEarned;
     }
 
@@ -215,7 +215,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         emit ContractsUpdated(_xpGemsContract, _badgesContract, block.timestamp);
     }
 
-
     /* =========================
        USER DATA MANAGEMENT
        ========================= */
@@ -236,7 +235,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     /* =========================
        TRANSACTION MANAGEMENT
        ========================= */
-
 
     /**
      * @dev Batch record transactions for a user
@@ -284,7 +282,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
        BADGE MANAGEMENT
        ========================= */
 
-
     function upgradeBadgeForUser(address user, uint256 badgeId, ILearnWayBadge.BadgeTier newTier)
         external
         onlyAdminOrManager
@@ -297,8 +294,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         badgesContract.upgradeBadge(user, badgeId, newTier);
         emit BadgeUpgraded(user, badgeId, block.timestamp);
     }
-
-
 
     /* =========================
        BATCH OPERATIONS
@@ -535,8 +530,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     function isUserRegistered(address user) external view returns (bool) {
         return address(xpGemsContract) != address(0) ? xpGemsContract.isRegistered(user) : false;
     }
-
-
 
     function getEarlyBirdInfo(address user)
         external
