@@ -3,8 +3,8 @@ pragma solidity 0.8.22;
 
 import "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {LearnWayAdmin} from "../src/LearnWayAdmin.sol";
-import {LearnWayBadge} from "../src/LearnWayBadge.sol";
+import {LearnWayAdmin} from "../../src/LearnWayAdmin.sol";
+import {LearnWayBadge} from "../../src/LearnWayBadge.sol";
 
 contract LearnWayBadgeComprehensiveTest is Test {
     LearnWayAdmin public adminContract;
