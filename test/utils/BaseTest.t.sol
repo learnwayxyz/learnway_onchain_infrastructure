@@ -9,23 +9,23 @@ import {LearnWayBadge} from "../../src/LearnWayBadge.sol";
 import {LearnwayXPGemsContract} from "../../src/LearnwayXPGemsContract.sol";
 import {LearnWayManager} from "../../src/LearnWayManager.sol";
 
-contract Setup is Test {
+contract BaseTest is Test {
     LearnWayAdmin internal adminContract;
     LearnWayBadge internal badgeContract;
     LearnwayXPGemsContract internal xpGemsContract;
     LearnWayManager internal managerContract;
 
-    address internal admin    = makeAddr("admin");
-    address internal manager  = makeAddr("manager");
-    address internal pauser   = makeAddr("pauser");
-    address internal user1    = makeAddr("user1");
-    address internal user2    = makeAddr("user2");
-    address internal user3    = makeAddr("user3");
+    address internal admin = makeAddr("admin");
+    address internal manager = makeAddr("manager");
+    address internal pauser = makeAddr("pauser");
+    address internal user1 = makeAddr("user1");
+    address internal user2 = makeAddr("user2");
+    address internal user3 = makeAddr("user3");
     address internal stranger = makeAddr("stranger");
 
-    bytes32 internal ADMIN_ROLE   = keccak256("ADMIN_ROLE");
+    bytes32 internal ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 internal MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 internal PAUSER_ROLE  = keccak256("PAUSER_ROLE");
+    bytes32 internal PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     function setUp() public virtual {
         LearnWayAdmin adminImpl = new LearnWayAdmin();
@@ -59,16 +59,16 @@ contract Setup is Test {
         managerContract.setContracts(address(xpGemsContract), address(badgeContract));
         vm.stopPrank();
 
-        vm.label(address(adminContract),   "AdminContract");
-        vm.label(address(badgeContract),   "BadgeContract");
-        vm.label(address(xpGemsContract),  "XPGemsContract");
+        vm.label(address(adminContract), "AdminContract");
+        vm.label(address(badgeContract), "BadgeContract");
+        vm.label(address(xpGemsContract), "XPGemsContract");
         vm.label(address(managerContract), "ManagerContract");
-        vm.label(admin,    "Admin");
-        vm.label(manager,  "Manager");
-        vm.label(pauser,   "Pauser");
-        vm.label(user1,    "User1");
-        vm.label(user2,    "User2");
-        vm.label(user3,    "User3");
+        vm.label(admin, "Admin");
+        vm.label(manager, "Manager");
+        vm.label(pauser, "Pauser");
+        vm.label(user1, "User1");
+        vm.label(user2, "User2");
+        vm.label(user3, "User3");
         vm.label(stranger, "Stranger");
     }
 }
