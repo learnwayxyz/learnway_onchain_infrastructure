@@ -5,9 +5,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  FOUNDRY_PROFILE: ci
-
 jobs:
   check:
     strategy:
@@ -23,7 +20,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          cache: true
 
       - name: Show Forge version
         run: |
@@ -32,9 +29,7 @@ jobs:
       - name: Run Forge build
         run: |
           forge build --sizes
-        id: build
 
-      - name: Run Forge tests
+      - name: Run Forge test
         run: |
           forge test -vvv
-        id: test

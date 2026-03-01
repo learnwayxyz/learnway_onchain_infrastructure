@@ -4,11 +4,11 @@
 // import "forge-std/Test.sol";
 // import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-// import {LearnWayAdmin} from "../src/LearnWayAdmin.sol";
-// import {LearnWayBadge} from "../src/LearnWayBadge.sol";
-// import {LearnwayXPGemsContract} from "../src/LearnwayXPGemsContract.sol";
+// import {LearnWayAdmin} from "../../src/LearnWayAdmin.sol";
+// import {LearnWayBadge} from "../../src/LearnWayBadge.sol";
+// import {LearnwayXPGemsContract} from "../../src/LearnwayXPGemsContract.sol";
 // // Import interfaces from manager where they are declared
-// import {LearnWayManager, ILearnWayBadge, ILearnwayXPGemsContract} from "../src/LearnWayManager.sol";
+// import {LearnWayManager, ILearnWayBadge, ILearnwayXPGemsContract} from "../../src/LearnWayManager.sol";
 
 // contract LearnWayIntegrationTest is Test {
 //     // Contract instances
