@@ -6,6 +6,7 @@ import "../src/LearnWayAdmin.sol";
 import "../src/LearnwayXPGemsContract.sol";
 import "../src/LearnWayBadge.sol";
 import "../src/LearnWayManager.sol";
+import "../src/LearnWayCertificate.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract DeployLearnWay is Script {
@@ -26,12 +27,17 @@ contract DeployLearnWay is Script {
     ERC1967Proxy public managerProxy;
     LearnWayManager public manager;
 
+    LearnWayCertificate public certificateImplementation;
+    ERC1967Proxy public certificateProxy;
+    LearnWayCertificate public certificate;
+
     // Deployment addresses (will be set during deployment)
     address public adminImplementationAddress;
     address public adminAddress;
     address public xpGemsLessonAddress;
     address public badgesAddress;
     address public managerAddress;
+    address public certificateAddress;
 
     function run() external {
         // Get the deployer's private key from environment
@@ -88,15 +94,26 @@ contract DeployLearnWay is Script {
         managerAddress = address(managerProxy);
         console.log("LearnWayManager Proxy deployed at:", managerAddress);
 
-        // 6. Setup roles and permissions
-        console.log("\n6. Setting up roles and permissions...");
+        // 6. Deploy Certificate as upgradeable
+        console.log("\n6. Deploying LearnWayCertificate as upgradeable...");
+        certificateImplementation = new LearnWayCertificate();
+        console.log("LearnWayCertificate Implementation deployed at:", address(certificateImplementation));
+        bytes memory certificateInitData = abi.encodeWithSelector(LearnWayCertificate.initialize.selector, adminAddress);
+        certificateProxy = new ERC1967Proxy(address(certificateImplementation), certificateInitData);
+        certificate = LearnWayCertificate(address(certificateProxy));
+        certificateAddress = address(certificateProxy);
+        console.log("LearnWayCertificate Proxy deployed at:", certificateAddress);
 
-        // grant all the 3 contracts ADMIN ROLE
+        // 7. Setup roles and permissions
+        console.log("\n7. Setting up roles and permissions...");
+
+        // grant all contracts ADMIN ROLE
         bytes32 ADMIN_ROLE = keccak256("ADMIN_ROLE");
-        for (uint256 i = 0; i < 3; i++) {
-            address contractAddress = i == 0 ? xpGemsLessonAddress : (i == 1 ? badgesAddress : managerAddress);
-            admin.setUpRole(ADMIN_ROLE, contractAddress);
-            console.log("Granted ADMIN_ROLE to contract:", contractAddress);
+        address[4] memory contractAddresses =
+            [xpGemsLessonAddress, badgesAddress, managerAddress, certificateAddress];
+        for (uint256 i = 0; i < 4; i++) {
+            admin.setUpRole(ADMIN_ROLE, contractAddresses[i]);
+            console.log("Granted ADMIN_ROLE to contract:", contractAddresses[i]);
         }
 
         // Grant MANAGER_ROLE to the LearnWayManager contract
@@ -104,12 +121,12 @@ contract DeployLearnWay is Script {
         admin.setUpRole(MANAGER_ROLE, managerAddress);
         console.log("Granted MANAGER_ROLE to LearnWayManager");
 
-        // 7. Configure LearnWayManager with the other contracts
-        console.log("\n7. Configuring LearnWayManager...");
+        // 8. Configure LearnWayManager with the other contracts
+        console.log("\n8. Configuring LearnWayManager...");
         manager.setContracts(xpGemsLessonAddress, badgesAddress);
         console.log("LearnWayManager configured with XPGems and Badge contracts");
 
-        // 8. Optional: Set base URI for badges (can be updated later)
+        // 9. Optional: Set base URI for badges (can be updated later)
         // badges.setBaseTokenURI("https://api.learnway.io/badges/");
 
         vm.stopBroadcast();
@@ -127,6 +144,7 @@ contract DeployLearnWay is Script {
         console.log("LearnwayXPGemsLessonContract:      ", xpGemsLessonAddress);
         console.log("LearnWayBadge:               ", badgesAddress);
         console.log("LearnWayManager:             ", managerAddress);
+        console.log("LearnWayCertificate:         ", certificateAddress);
         console.log("========================================");
         console.log("\nDeployment completed successfully!");
         console.log("\nIMPORTANT: Save these addresses for verification and future reference.");
@@ -137,6 +155,7 @@ contract DeployLearnWay is Script {
         console.log("XPGEMS_ADDRESS=", xpGemsLessonAddress);
         console.log("BADGE_ADDRESS=", badgesAddress);
         console.log("MANAGER_ADDRESS=", managerAddress);
+        console.log("CERTIFICATE_ADDRESS=", certificateAddress);
         console.log("==========================================");
     }
 }

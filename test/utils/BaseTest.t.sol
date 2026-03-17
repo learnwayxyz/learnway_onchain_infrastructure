@@ -8,12 +8,14 @@ import {LearnWayAdmin} from "../../src/LearnWayAdmin.sol";
 import {LearnWayBadge} from "../../src/LearnWayBadge.sol";
 import {LearnwayXPGemsContract} from "../../src/LearnwayXPGemsContract.sol";
 import {LearnWayManager} from "../../src/LearnWayManager.sol";
+import {LearnWayCertificate} from "../../src/LearnWayCertificate.sol";
 
 contract BaseTest is Test {
     LearnWayAdmin internal adminContract;
     LearnWayBadge internal badgeContract;
     LearnwayXPGemsContract internal xpGemsContract;
     LearnWayManager internal managerContract;
+    LearnWayCertificate internal certificateContract;
 
     address internal admin = makeAddr("admin");
     address internal manager = makeAddr("manager");
@@ -54,6 +56,11 @@ contract BaseTest is Test {
         managerContract = LearnWayManager(address(managerProxy));
         managerContract.initialize(address(adminContract));
 
+        LearnWayCertificate certificateImpl = new LearnWayCertificate();
+        ERC1967Proxy certificateProxy = new ERC1967Proxy(address(certificateImpl), bytes(""));
+        certificateContract = LearnWayCertificate(address(certificateProxy));
+        certificateContract.initialize(address(adminContract));
+
         vm.startPrank(admin);
         adminContract.setUpRole(MANAGER_ROLE, address(managerContract));
         managerContract.setContracts(address(xpGemsContract), address(badgeContract));
@@ -63,6 +70,7 @@ contract BaseTest is Test {
         vm.label(address(badgeContract), "BadgeContract");
         vm.label(address(xpGemsContract), "XPGemsContract");
         vm.label(address(managerContract), "ManagerContract");
+        vm.label(address(certificateContract), "CertificateContract");
         vm.label(admin, "Admin");
         vm.label(manager, "Manager");
         vm.label(pauser, "Pauser");
