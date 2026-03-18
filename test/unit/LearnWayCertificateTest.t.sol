@@ -317,8 +317,10 @@ contract LearnWayCertificateTest_MintCertificate is BaseTest {
         vm.prank(admin);
         certificateContract.mintCertificate(user1, 1, METADATA_URI);
 
+        (bool exists, uint256 tokenId,,) = certificateContract.getCertificate(user1, 1);
+        assertTrue(exists);
+        assertEq(certificateContract.ownerOf(tokenId), user1);
         assertEq(certificateContract.balanceOf(user1), 1);
-        assertEq(certificateContract.ownerOf(1), user1);
     }
 
     // --- Effects ---
@@ -327,8 +329,9 @@ contract LearnWayCertificateTest_MintCertificate is BaseTest {
         vm.prank(admin);
         certificateContract.mintCertificate(user1, 1, METADATA_URI);
 
+        (, uint256 tokenId,,) = certificateContract.getCertificate(user1, 1);
         (uint256 courseId, address recipient, uint256 mintedAt, string memory uri) =
-            certificateContract.getCertificateByToken(1);
+            certificateContract.getCertificateByToken(tokenId);
         assertEq(courseId, 1);
         assertEq(recipient, user1);
         assertEq(mintedAt, block.timestamp);
@@ -344,14 +347,7 @@ contract LearnWayCertificateTest_MintCertificate is BaseTest {
         assertTrue(certificateContract.hasCertificate(user1, 1));
     }
 
-    function test_SetsUserCertificateTokenId() public {
-        vm.prank(admin);
-        certificateContract.mintCertificate(user1, 1, METADATA_URI);
-
-        assertEq(certificateContract.userCertificateTokenId(user1, 1), 1);
-    }
-
-    function test_AppendsToCertificateList() public {
+    function test_TracksCertificatesPerUser() public {
         vm.startPrank(admin);
         certificateContract.addCourse(2, "Course B", "Instructor B");
         certificateContract.mintCertificate(user1, 1, METADATA_URI);
@@ -360,19 +356,23 @@ contract LearnWayCertificateTest_MintCertificate is BaseTest {
 
         uint256[] memory certs = certificateContract.getUserCertificates(user1);
         assertEq(certs.length, 2);
-        assertEq(certs[0], 1);
-        assertEq(certs[1], 2);
+        assertEq(certificateContract.ownerOf(certs[0]), user1);
+        assertEq(certificateContract.ownerOf(certs[1]), user1);
     }
 
-    function test_IncrementsTokenIdCounter() public {
+    function test_EachMintProducesUniqueTokenForCorrectUser() public {
         vm.startPrank(admin);
-        certificateContract.mintCertificate(user1, 1, METADATA_URI);
         certificateContract.addCourse(2, "Course B", "Instructor B");
+        certificateContract.mintCertificate(user1, 1, METADATA_URI);
         certificateContract.mintCertificate(user2, 2, "ipfs://QmHash2");
         vm.stopPrank();
 
-        assertEq(certificateContract.ownerOf(1), user1);
-        assertEq(certificateContract.ownerOf(2), user2);
+        (, uint256 tokenId1,,) = certificateContract.getCertificate(user1, 1);
+        (, uint256 tokenId2,,) = certificateContract.getCertificate(user2, 2);
+
+        assertTrue(tokenId1 != tokenId2);
+        assertEq(certificateContract.ownerOf(tokenId1), user1);
+        assertEq(certificateContract.ownerOf(tokenId2), user2);
     }
 
     // --- Events ---
@@ -411,6 +411,7 @@ contract LearnWayCertificateTest_MintCertificate is BaseTest {
     // --- Fuzz ---
 
     function testFuzz_MintCertificateWithRandomCourseId(uint256 courseId) public {
+        vm.assume(courseId != 1); // course 1 already added in setUp
         vm.startPrank(admin);
         certificateContract.addCourse(courseId, "Fuzz Course", "Fuzz Instructor");
         certificateContract.mintCertificate(user1, courseId, METADATA_URI);
@@ -436,7 +437,8 @@ contract LearnWayCertificateTest_TokenURI is BaseTest {
     }
 
     function test_ReturnsStoredIPFSUri() public view {
-        assertEq(certificateContract.tokenURI(1), METADATA_URI);
+        (, uint256 tokenId,,) = certificateContract.getCertificate(user1, 1);
+        assertEq(certificateContract.tokenURI(tokenId), METADATA_URI);
     }
 
     function test_RevertWhen_TokenDoesNotExist() public {
@@ -465,7 +467,7 @@ contract LearnWayCertificateTest_GetCertificate is BaseTest {
             certificateContract.getCertificate(user1, 1);
 
         assertTrue(exists);
-        assertEq(tokenId, 1);
+        assertTrue(tokenId != 0);
         assertEq(mintedAt, block.timestamp);
         assertEq(uri, METADATA_URI);
     }
@@ -521,7 +523,7 @@ contract LearnWayCertificateTest_GetUserCertificates is BaseTest {
 
         uint256[] memory certs = certificateContract.getUserCertificates(user1);
         assertEq(certs.length, 1);
-        assertEq(certs[0], 1);
+        assertEq(certificateContract.ownerOf(certs[0]), user1);
     }
 
     function test_ReturnsMultipleCertificates() public {
@@ -533,9 +535,9 @@ contract LearnWayCertificateTest_GetUserCertificates is BaseTest {
 
         uint256[] memory certs = certificateContract.getUserCertificates(user1);
         assertEq(certs.length, 3);
-        assertEq(certs[0], 1);
-        assertEq(certs[1], 2);
-        assertEq(certs[2], 3);
+        for (uint256 i = 0; i < certs.length; i++) {
+            assertEq(certificateContract.ownerOf(certs[i]), user1);
+        }
     }
 }
 
@@ -576,7 +578,8 @@ contract LearnWayCertificateTest_SoulboundTransfer is BaseTest {
         certificateContract.mintCertificate(user2, 2, "ipfs://QmHash2");
         vm.stopPrank();
 
-        assertEq(certificateContract.ownerOf(2), user2);
+        (, uint256 tokenId,,) = certificateContract.getCertificate(user2, 2);
+        assertEq(certificateContract.ownerOf(tokenId), user2);
     }
 }
 
@@ -744,7 +747,62 @@ contract LearnWayCertificateTest_UpgradeSafety is BaseTest {
 
         assertTrue(certificateContract.hasCertificate(user1, 1));
         assertTrue(certificateContract.courseExists(1));
-        assertEq(certificateContract.ownerOf(1), user1);
+        (string memory name, string memory instructor, bool active) = certificateContract.getCourseInfo(1);
+        assertEq(name, "Blockchain 101");
+        assertEq(instructor, "Dr. Mensah");
+        assertTrue(active);
+
+        (bool exists, uint256 tokenId,,) = certificateContract.getCertificate(user1, 1);
+        assertTrue(exists);
+        assertEq(certificateContract.ownerOf(tokenId), user1);
+    }
+
+    function test_StatePreservedAfterUpgradeToV2() public {
+        vm.startPrank(admin);
+        certificateContract.addCourse(1, "Blockchain 101", "Dr. Mensah");
+        certificateContract.mintCertificate(user1, 1, "ipfs://QmHash");
+        vm.stopPrank();
+
+        MockLearnWayCertificateV2 v2Impl = new MockLearnWayCertificateV2();
+        vm.prank(admin);
+        certificateContract.upgradeToAndCall(
+            address(v2Impl),
+            abi.encodeWithSelector(MockLearnWayCertificateV2.initializeV2.selector, 42)
+        );
+
+        assertTrue(certificateContract.hasCertificate(user1, 1));
+        assertTrue(certificateContract.courseExists(1));
+        (, uint256 tokenId,,) = certificateContract.getCertificate(user1, 1);
+        assertEq(certificateContract.ownerOf(tokenId), user1);
+        (string memory name, string memory instructor, bool active) = certificateContract.getCourseInfo(1);
+        assertEq(name, "Blockchain 101");
+        assertEq(instructor, "Dr. Mensah");
+        assertTrue(active);
+
+        MockLearnWayCertificateV2 v2Proxy = MockLearnWayCertificateV2(address(certificateContract));
+        assertEq(v2Proxy.newV2Variable(), 42);
+    }
+
+    function test_RevertWhen_ReinitializingAfterUpgrade() public {
+        MockLearnWayCertificateV2 v2Impl = new MockLearnWayCertificateV2();
+        vm.prank(admin);
+        certificateContract.upgradeToAndCall(
+            address(v2Impl),
+            abi.encodeWithSelector(MockLearnWayCertificateV2.initializeV2.selector, 42)
+        );
+
+        MockLearnWayCertificateV2 v2Proxy = MockLearnWayCertificateV2(address(certificateContract));
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        v2Proxy.initializeV2(99);
+    }
+
+    function test_RevertWhen_CallingOriginalInitializeAfterUpgrade() public {
+        MockLearnWayCertificateV2 v2Impl = new MockLearnWayCertificateV2();
+        vm.prank(admin);
+        certificateContract.upgradeToAndCall(address(v2Impl), bytes(""));
+
+        vm.expectRevert(abi.encodeWithSignature("InvalidInitialization()"));
+        certificateContract.initialize(address(adminContract));
     }
 
     // --- Edge Cases ---

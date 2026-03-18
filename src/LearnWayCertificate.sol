@@ -37,12 +37,12 @@ contract LearnWayCertificate is
         string metadataURI;
     }
 
-    mapping(uint256 => Course) public courses;
+    mapping(uint256 => Course) internal courses;
     mapping(uint256 => bool) public courseExists;
-    mapping(uint256 => CertificateData) public certificates;
+    mapping(uint256 => CertificateData) internal certificates;
     mapping(address => mapping(uint256 => bool)) public hasCertificate;
     mapping(address => mapping(uint256 => uint256)) public userCertificateTokenId;
-    mapping(address => uint256[]) public userCertificateList;
+    mapping(address => uint256[]) internal userCertificateList;
 
     event CourseAdded(uint256 indexed courseId, string courseName, string instructorName, bool status);
     event CourseStatusUpdated(uint256 indexed courseId, bool active, bool status);
