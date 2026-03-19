@@ -44,6 +44,10 @@ The LearnWay Certificate NFT system issues **soulbound (non-transferable) ERC-72
 - **Solidity Version**: `^0.8.22`
 - **Inheritance**: `Initializable`, `ERC721Upgradeable`, `ReentrancyGuardUpgradeable`, `PausableUpgradeable`, `UUPSUpgradeable`
 
+### Deployed Contracts
+
+- **Testnet (Lisk Sepolia)**: `0x09b5905aC45f30d70365bB917A3f79Ea79405129`
+
 ### System Diagram
 
 ```
