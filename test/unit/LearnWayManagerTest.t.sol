@@ -73,7 +73,7 @@ contract LearnWayManagerTest_SetContracts is ManagerBaseTest {
     function test_StoresXpGemsAndBadgeAddresses() public {
         vm.prank(admin);
         managerContract.setContracts(address(xpGemsContract), address(badgeContract));
-        (address gemsAddr, address badgesAddr) = managerContract.getContractAddresses();
+        (address gemsAddr, address badgesAddr,) = managerContract.getContractAddresses();
         assertEq(gemsAddr, address(xpGemsContract));
         assertEq(badgesAddr, address(badgeContract));
     }
@@ -258,7 +258,9 @@ contract LearnWayManagerTest_BatchRecordTransactionsForUsers is ManagerBaseTest 
     function test_RevertWhen_BatchSizeExceedsLimit() public {
         uint256 n = 101;
         address[] memory users = new address[](n);
-        for (uint256 i = 0; i < n; i++) users[i] = address(uint160(i + 1));
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = address(uint160(i + 1));
+        }
         (
             uint256[][] memory gems,
             uint256[][] memory xp,
@@ -416,7 +418,9 @@ contract LearnWayManagerTest_BatchRegisterUsers is ManagerBaseTest {
     function test_RevertWhen_BatchSizeExceedsLimit() public {
         uint256 n = 101;
         address[] memory users = new address[](n);
-        for (uint256 i = 0; i < n; i++) users[i] = address(uint160(i + 1));
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = address(uint160(i + 1));
+        }
         uint256[] memory gems = new uint256[](n);
         bool[] memory kyc = new bool[](n);
 
@@ -438,7 +442,6 @@ contract LearnWayManagerTest_BatchRegisterUsers is ManagerBaseTest {
         vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         managerContract.batchRegisterUsers(users, gems, kyc);
     }
-
 }
 
 contract LearnWayManagerTest_BatchUpdateUserData is ManagerBaseTest {
@@ -490,7 +493,9 @@ contract LearnWayManagerTest_BatchUpdateUserData is ManagerBaseTest {
     function test_RevertWhen_BatchSizeExceedsLimit() public {
         uint256 n = 101;
         address[] memory users = new address[](n);
-        for (uint256 i = 0; i < n; i++) users[i] = address(uint160(i + 1));
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = address(uint160(i + 1));
+        }
         uint256[] memory gems = new uint256[](n);
         uint256[] memory xp = new uint256[](n);
         uint256[] memory streaks = new uint256[](n);
@@ -580,9 +585,13 @@ contract LearnWayManagerTest_BatchMintBadges is ManagerBaseTest {
     function test_RevertWhen_BatchSizeExceedsLimit() public {
         uint256 n = 51;
         address[] memory users = new address[](n);
-        for (uint256 i = 0; i < n; i++) users[i] = address(uint160(i + 1));
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = address(uint160(i + 1));
+        }
         uint256[] memory badgeIds = new uint256[](n);
-        for (uint256 i = 0; i < n; i++) badgeIds[i] = 2;
+        for (uint256 i = 0; i < n; i++) {
+            badgeIds[i] = 2;
+        }
         ILearnWayBadge.BadgeTier[] memory tiers = new ILearnWayBadge.BadgeTier[](n);
 
         vm.prank(manager);
@@ -694,7 +703,9 @@ contract LearnWayManagerTest_BatchUpdateKycStatus is ManagerBaseTest {
     function test_RevertWhen_BatchSizeExceedsLimit() public {
         uint256 n = 101;
         address[] memory users = new address[](n);
-        for (uint256 i = 0; i < n; i++) users[i] = address(uint160(i + 1));
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = address(uint160(i + 1));
+        }
         bool[] memory statuses = new bool[](n);
 
         vm.prank(manager);
@@ -764,23 +775,31 @@ contract LearnWayManagerTest_GetUserCompleteData is ManagerBaseTest {
     }
 
     function test_ReturnsFullDataForRegisteredUser() public {
-        (uint256 gems,,,,, uint256[] memory badgesList, uint256 txCount, bool kycCompleted, uint256 totalBadgesEarned,)
-            = managerContract.getUserCompleteData(user1);
+        (
+            uint256 gems,,,,,
+            uint256[] memory badgesList,
+            uint256 txCount,
+            bool kycCompleted,
+            uint256 totalBadgesEarned,,
+            uint256[] memory certificatesList
+        ) = managerContract.getUserCompleteData(user1);
         assertEq(gems, 50);
         assertEq(badgesList.length, 1);
         assertEq(txCount, 1);
         assertFalse(kycCompleted);
         assertEq(totalBadgesEarned, 1);
+        assertEq(certificatesList.length, 0);
     }
 
     function test_ReturnsDefaultsWhenContractsNotSet() public {
         LearnWayManager mgr = deployManagerWithoutContracts();
-        (uint256 gems, uint256 xp,,,, uint256[] memory badgesList, uint256 txCount,,,)
-            = mgr.getUserCompleteData(user1);
+        (uint256 gems, uint256 xp,,,, uint256[] memory badgesList, uint256 txCount,,,,
+            uint256[] memory certificatesList) = mgr.getUserCompleteData(user1);
         assertEq(gems, 0);
         assertEq(xp, 0);
         assertEq(badgesList.length, 0);
         assertEq(txCount, 0);
+        assertEq(certificatesList.length, 0);
     }
 }
 
@@ -811,8 +830,7 @@ contract LearnWayManagerTest_GetUserBadgeData is ManagerBaseTest {
     }
 
     function test_ReturnsBadgeDataFromBadgesContract() public {
-        (bool kycCompleted, bool isRegistered, uint256 totalBadgesEarned,,)
-            = managerContract.getUserBadgeData(user1);
+        (bool kycCompleted, bool isRegistered, uint256 totalBadgesEarned,,) = managerContract.getUserBadgeData(user1);
         assertFalse(kycCompleted);
         assertTrue(isRegistered);
         assertEq(totalBadgesEarned, 1);
@@ -941,7 +959,9 @@ contract LearnWayManagerTest_GetUserTransactionsByType is ManagerBaseTest {
 
     function test_ReturnsEmptyArrayWhenContractNotSet() public {
         assertEq(
-            deployManagerWithoutContracts().getUserTransactionsByType(user1, ILearnwayXPGemsContract.TransactionType.Lesson).length,
+            deployManagerWithoutContracts()
+            .getUserTransactionsByType(user1, ILearnwayXPGemsContract.TransactionType.Lesson)
+            .length,
             0
         );
     }
@@ -1059,15 +1079,17 @@ contract LearnWayManagerTest_GetTotalUsers is ManagerBaseTest {
 contract LearnWayManagerTest_GetContractAddresses is ManagerBaseTest {
     function test_ReturnsZeroAddressesBeforeContractsSet() public {
         LearnWayManager mgr = deployManagerWithoutContracts();
-        (address gemsAddr, address badgesAddr) = mgr.getContractAddresses();
+        (address gemsAddr, address badgesAddr, address certificateAddr) = mgr.getContractAddresses();
         assertEq(gemsAddr, address(0));
         assertEq(badgesAddr, address(0));
+        assertEq(certificateAddr, address(0));
     }
 
     function test_ReturnsSetContractAddresses() public {
-        (address gemsAddr, address badgesAddr) = managerContract.getContractAddresses();
+        (address gemsAddr, address badgesAddr, address certificateAddr) = managerContract.getContractAddresses();
         assertEq(gemsAddr, address(xpGemsContract));
         assertEq(badgesAddr, address(badgeContract));
+        assertEq(certificateAddr, address(certificateContract));
     }
 }
 
@@ -1158,7 +1180,7 @@ contract LearnWayManagerTest_UpdateAdminContract is ManagerBaseTest {
 
 contract LearnWayManagerTest_Version is ManagerBaseTest {
     function test_ReturnsCurrentVersion() public {
-        assertEq(managerContract.version(), "1.0.0");
+        assertEq(managerContract.version(), "1.1.0");
     }
 }
 
@@ -1197,5 +1219,231 @@ contract LearnWayManagerTest_AuthorizeUpgrade is ManagerBaseTest {
         vm.prank(admin);
         managerContract.upgradeToAndCall(address(newImpl), "");
         assertEq(address(managerContract.adminContract()), originalAdmin);
+    }
+}
+
+// ============================================================
+//  BatchMintCertificates
+// ============================================================
+
+contract LearnWayManagerTest_BatchMintCertificates is ManagerBaseTest {
+    event CertificateMinted(address indexed user, uint256 indexed courseId, uint256 timestamp);
+
+    function setUp() public override {
+        super.setUp();
+        vm.prank(admin);
+        certificateContract.addCourse(1, "Blockchain 101", "Dr. Mensah");
+    }
+
+    function _buildBatch(address user, uint256 courseId, string memory uri)
+        internal
+        pure
+        returns (address[] memory users, uint256[] memory courseIds, string[] memory uris)
+    {
+        users = new address[](1);
+        users[0] = user;
+        courseIds = new uint256[](1);
+        courseIds[0] = courseId;
+        uris = new string[](1);
+        uris[0] = uri;
+    }
+
+    // --- Access Control ---
+
+    function test_RevertWhen_CallerIsStranger() public {
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+        vm.prank(stranger);
+        vm.expectRevert("Not Authorized Manager");
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+
+    function test_AdminCanMint() public {
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+        vm.prank(admin);
+        managerContract.batchMintCertificates(users, courseIds, uris);
+        assertTrue(certificateContract.hasCertificate(user1, 1));
+    }
+
+    function test_ManagerCanMint() public {
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+        vm.prank(manager);
+        managerContract.batchMintCertificates(users, courseIds, uris);
+        assertTrue(certificateContract.hasCertificate(user1, 1));
+    }
+
+    // --- Input Validation ---
+
+    function test_RevertWhen_ArrayLengthMismatch() public {
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2;
+        uint256[] memory courseIds = new uint256[](1);
+        courseIds[0] = 1;
+        string[] memory uris = new string[](1);
+        uris[0] = "ipfs://QmHash";
+
+        vm.prank(admin);
+        vm.expectRevert("Array length mismatch");
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+
+    function test_RevertWhen_BatchTooLarge() public {
+        address[] memory users = new address[](51);
+        uint256[] memory courseIds = new uint256[](51);
+        string[] memory uris = new string[](51);
+
+        vm.prank(admin);
+        vm.expectRevert("Batch size too large");
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+
+    function test_RevertWhen_AddressIsZero() public {
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(address(0), 1, "ipfs://QmHash");
+        vm.prank(admin);
+        vm.expectRevert("Invalid address in batch");
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+
+    // --- Preconditions ---
+
+    function test_RevertWhen_CertificateContractNotSet() public {
+        LearnWayManager mgr = deployManagerWithoutContracts();
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+        vm.prank(admin);
+        vm.expectRevert("Certificate contract not set");
+        mgr.batchMintCertificates(users, courseIds, uris);
+    }
+
+    function test_RevertWhen_Paused() public {
+        vm.prank(admin);
+        managerContract.pause();
+
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+        vm.prank(admin);
+        vm.expectRevert();
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+
+    // --- Happy Path ---
+
+    function test_MintsForMultipleUsers() public {
+        address[] memory users = new address[](2);
+        users[0] = user1;
+        users[1] = user2;
+        uint256[] memory courseIds = new uint256[](2);
+        courseIds[0] = 1;
+        courseIds[1] = 1;
+        string[] memory uris = new string[](2);
+        uris[0] = "ipfs://QmHash1";
+        uris[1] = "ipfs://QmHash2";
+
+        vm.prank(admin);
+        managerContract.batchMintCertificates(users, courseIds, uris);
+
+        assertTrue(certificateContract.hasCertificate(user1, 1));
+        assertTrue(certificateContract.hasCertificate(user2, 1));
+    }
+
+    // --- Events ---
+
+    function test_EmitsCertificateMintedPerUser() public {
+        (address[] memory users, uint256[] memory courseIds, string[] memory uris) =
+            _buildBatch(user1, 1, "ipfs://QmHash");
+
+        vm.expectEmit(true, true, false, true);
+        emit CertificateMinted(user1, 1, block.timestamp);
+
+        vm.prank(admin);
+        managerContract.batchMintCertificates(users, courseIds, uris);
+    }
+}
+
+// ============================================================
+//  Certificate View Functions
+// ============================================================
+
+contract LearnWayManagerTest_CertificateViews is ManagerBaseTest {
+    function setUp() public override {
+        super.setUp();
+        vm.startPrank(admin);
+        certificateContract.addCourse(1, "Blockchain 101", "Dr. Mensah");
+        certificateContract.addCourse(2, "Solidity 201", "Prof. Turing");
+        vm.stopPrank();
+    }
+
+    // --- getUserCertificates ---
+
+    function test_GetUserCertificates_ReturnsEmptyWhenNone() public view {
+        uint256[] memory certs = managerContract.getUserCertificates(user1);
+        assertEq(certs.length, 0);
+    }
+
+    function test_GetUserCertificates_ReturnsDataAfterMint() public {
+        vm.prank(admin);
+        certificateContract.mintCertificate(user1, 1, "ipfs://QmHash");
+
+        uint256[] memory certs = managerContract.getUserCertificates(user1);
+        assertEq(certs.length, 1);
+        assertEq(certs[0], 1);
+    }
+
+    function test_GetUserCertificates_ReturnsEmptyWhenContractNotSet() public {
+        LearnWayManager mgr = deployManagerWithoutContracts();
+        uint256[] memory certs = mgr.getUserCertificates(user1);
+        assertEq(certs.length, 0);
+    }
+
+    // --- userHasCertificate ---
+
+    function test_UserHasCertificate_ReturnsFalseWhenNone() public view {
+        assertFalse(managerContract.userHasCertificate(user1, 1));
+    }
+
+    function test_UserHasCertificate_ReturnsTrueAfterMint() public {
+        vm.prank(admin);
+        certificateContract.mintCertificate(user1, 1, "ipfs://QmHash");
+
+        assertTrue(managerContract.userHasCertificate(user1, 1));
+    }
+
+    function test_UserHasCertificate_ReturnsFalseWhenContractNotSet() public {
+        LearnWayManager mgr = deployManagerWithoutContracts();
+        assertFalse(mgr.userHasCertificate(user1, 1));
+    }
+
+    // --- getUserCertificate ---
+
+    function test_GetUserCertificate_ReturnsDefaultsWhenNone() public view {
+        (bool exists, uint256 tokenId, uint256 mintedAt, string memory uri) =
+            managerContract.getUserCertificate(user1, 1);
+        assertFalse(exists);
+        assertEq(tokenId, 0);
+        assertEq(mintedAt, 0);
+        assertEq(bytes(uri).length, 0);
+    }
+
+    function test_GetUserCertificate_ReturnsDataAfterMint() public {
+        vm.prank(admin);
+        certificateContract.mintCertificate(user1, 1, "ipfs://QmHash");
+
+        (bool exists,,, string memory uri) = managerContract.getUserCertificate(user1, 1);
+        assertTrue(exists);
+        assertEq(uri, "ipfs://QmHash");
+    }
+
+    function test_GetUserCertificate_ReturnsDefaultsWhenContractNotSet() public {
+        LearnWayManager mgr = deployManagerWithoutContracts();
+        (bool exists, uint256 tokenId, uint256 mintedAt, string memory uri) =
+            mgr.getUserCertificate(user1, 1);
+        assertFalse(exists);
+        assertEq(tokenId, 0);
+        assertEq(mintedAt, 0);
+        assertEq(bytes(uri).length, 0);
     }
 }
