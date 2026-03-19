@@ -124,7 +124,8 @@ contract DeployLearnWay is Script {
         // 8. Configure LearnWayManager with the other contracts
         console.log("\n8. Configuring LearnWayManager...");
         manager.setContracts(xpGemsLessonAddress, badgesAddress);
-        console.log("LearnWayManager configured with XPGems and Badge contracts");
+        manager.setCertificateContract(certificateAddress);
+        console.log("LearnWayManager configured with XPGems, Badge, and Certificate contracts");
 
         // 9. Optional: Set base URI for badges (can be updated later)
         // badges.setBaseTokenURI("https://api.learnway.io/badges/");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.22;
 
 interface ILearnWayCertificate {
     function addCourse(uint256 courseId, string calldata courseName, string calldata instructorName) external;

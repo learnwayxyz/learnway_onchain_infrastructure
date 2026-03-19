@@ -64,6 +64,7 @@ contract BaseTest is Test {
         vm.startPrank(admin);
         adminContract.setUpRole(MANAGER_ROLE, address(managerContract));
         managerContract.setContracts(address(xpGemsContract), address(badgeContract));
+        managerContract.setCertificateContract(address(certificateContract));
         vm.stopPrank();
 
         vm.label(address(adminContract), "AdminContract");
