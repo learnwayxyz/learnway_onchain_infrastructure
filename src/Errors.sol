@@ -9,3 +9,14 @@ error UnauthorizedEmergency();
 error UnauthorizedPauser();
 error UnauthorizedAdminOrManager();
 error UnauthorizedMinter();
+
+// --- Certificate Errors ---
+error InvalidCourseId();
+error CourseAlreadyExists();
+error CourseNotActive();
+error CertificateAlreadyMinted();
+error CertificateNonTransferable();
+error EmptyCourseName();
+error EmptyInstructorName();
+error EmptyMetadataURI();
+error InvalidAddress();

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interface/ILearnWayAdmin.sol";
+import "./interface/ILearnWayCertificate.sol";
 import "./Errors.sol";
 
 // Updated interface for LearnwayXPGemsContract (without lessons, with transactions)
@@ -144,6 +145,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     event BadgeMinted(address indexed user, uint256 badgeId, uint256 timestamp);
     event BadgeUpgraded(address indexed user, uint256 badgeId, uint256 timestamp);
     event KycStatusUpdated(address indexed user, bool kycStatus, uint256 timestamp);
+    event CertificateMinted(address indexed user, uint256 indexed courseId, uint256 timestamp);
     event ContractsUpdated(address xpGemsContract, address badgesContract, uint256 timestamp);
 
     /* =========================
@@ -152,6 +154,7 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     ILearnWayAdmin public adminContract;
     ILearnwayXPGemsContract public xpGemsContract;
     ILearnWayBadge public badgesContract;
+    ILearnWayCertificate public certificateContract;
 
     /* =========================
        MODIFIERS
@@ -213,6 +216,11 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         badgesContract = ILearnWayBadge(_badgesContract);
 
         emit ContractsUpdated(_xpGemsContract, _badgesContract, block.timestamp);
+    }
+
+    function setCertificateContract(address _certificateContract) external onlyAdmin {
+        require(_certificateContract != address(0), "Invalid certificate contract address");
+        certificateContract = ILearnWayCertificate(_certificateContract);
     }
 
     /* =========================
@@ -383,6 +391,24 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         }
     }
 
+    function batchMintCertificates(
+        address[] calldata users,
+        uint256[] calldata courseIds,
+        string[] calldata metadataURIs
+    ) external onlyAdminOrManager nonReentrant whenNotPaused {
+        require(address(certificateContract) != address(0), "Certificate contract not set");
+        require(users.length == courseIds.length && users.length == metadataURIs.length, "Array length mismatch");
+        require(users.length <= 50, "Batch size too large");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            require(user != address(0), "Invalid address in batch");
+
+            certificateContract.mintCertificate(user, courseIds[i], metadataURIs[i]);
+            emit CertificateMinted(user, courseIds[i], block.timestamp);
+        }
+    }
+
     /* =========================
        VIEW FUNCTIONS
        ========================= */
@@ -400,7 +426,8 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             uint256 transactionCount,
             bool kycCompleted,
             uint256 totalBadgesEarned,
-            uint256 registrationOrder
+            uint256 registrationOrder,
+            uint256[] memory certificatesList
         )
     {
         if (address(xpGemsContract) != address(0)) {
@@ -414,6 +441,10 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
             kycCompleted = userBadgeInfo.kycVerified;
             totalBadgesEarned = userBadgeInfo.totalBadgesEarned;
             registrationOrder = userBadgeInfo.registrationOrder;
+        }
+
+        if (address(certificateContract) != address(0)) {
+            certificatesList = certificateContract.getUserCertificates(user);
         }
     }
 
@@ -527,6 +558,28 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         return address(badgesContract) != address(0) ? badgesContract.userHasBadge(user, badgeId) : false;
     }
 
+    function getUserCertificates(address user) external view returns (uint256[] memory) {
+        return address(certificateContract) != address(0)
+            ? certificateContract.getUserCertificates(user)
+            : new uint256[](0);
+    }
+
+    function userHasCertificate(address user, uint256 courseId) external view returns (bool) {
+        return address(certificateContract) != address(0)
+            ? certificateContract.hasCertificate(user, courseId)
+            : false;
+    }
+
+    function getUserCertificate(address user, uint256 courseId)
+        external
+        view
+        returns (bool exists, uint256 tokenId, uint256 mintedAt, string memory metadataURI)
+    {
+        if (address(certificateContract) != address(0)) {
+            return certificateContract.getCertificate(user, courseId);
+        }
+    }
+
     function isUserRegistered(address user) external view returns (bool) {
         return address(xpGemsContract) != address(0) ? xpGemsContract.isRegistered(user) : false;
     }
@@ -553,8 +606,12 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
         return address(xpGemsContract) != address(0) ? xpGemsContract.totalRegisteredUsers() : 0;
     }
 
-    function getContractAddresses() external view returns (address gemsAddr, address badgesAddr) {
-        return (address(xpGemsContract), address(badgesContract));
+    function getContractAddresses()
+        external
+        view
+        returns (address gemsAddr, address badgesAddr, address certificateAddr)
+    {
+        return (address(xpGemsContract), address(badgesContract), address(certificateContract));
     }
 
     /* =========================
@@ -575,6 +632,6 @@ contract LearnWayManager is Initializable, ReentrancyGuardUpgradeable, PausableU
     }
 
     function version() external pure returns (string memory) {
-        return "1.0.0";
+        return "1.1.0";
     }
 }
