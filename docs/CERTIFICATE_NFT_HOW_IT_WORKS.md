@@ -46,6 +46,7 @@ The LearnWay Certificate NFT system issues **soulbound (non-transferable) ERC-72
 
 ### Deployed Contracts
 
+- **Mainnet (Lisk Mainnet)**: `0xf8Dc9381a69D718c21af3FbF91F60C3CAA6A2774`
 - **Testnet (Lisk Sepolia)**: `0x09b5905aC45f30d70365bB917A3f79Ea79405129`
 
 ### System Diagram
