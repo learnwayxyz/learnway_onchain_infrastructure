@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LearnWay Deployment Script for Lisk Sepolia Testnet
+# LearnWay Deployment Script for Celo Sepolia Testnet
 # This script deploys all LearnWay contracts and verifies them on Blockscout
 
 set -e  # Exit on any error
@@ -13,17 +13,17 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-RPC_URL="https://rpc.sepolia-api.lisk.com"
+RPC_URL="https://forno.celo-sepolia.celo-testnet.org"
 VERIFIER="blockscout"
-VERIFIER_URL="https://sepolia-blockscout.lisk.com/api/"
-CHAIN_ID=4202
+VERIFIER_URL="https://celo-sepolia.blockscout.com/api/"
+CHAIN_ID=11142220
 
 # File to store deployment addresses
 DEPLOYMENT_FILE="deployment-addresses.txt"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}LearnWay Contract Deployment Script${NC}"
-echo -e "${BLUE}Network: Lisk Sepolia Testnet${NC}"
+echo -e "${BLUE}Network: Celo Sepolia Testnet${NC}"
 echo -e "${BLUE}All contracts are upgradeable (UUPS)${NC}"
 echo -e "${BLUE}========================================${NC}\n"
 
@@ -93,7 +93,7 @@ fi
 # Save addresses to file
 {
     echo "# LearnWay Deployment Addresses - $(date)"
-    echo "# Network: Lisk Sepolia Testnet"
+    echo "# Network: Celo Sepolia Testnet"
     echo "# All contracts are upgradeable using UUPS proxy pattern"
     echo ""
     echo "# Implementation Addresses"
@@ -277,13 +277,13 @@ echo -e "7. To upgrade contracts in the future, deploy new implementations and c
 
 echo -e "\n${BLUE}View your contracts on Blockscout:${NC}"
 echo -e "${BLUE}Implementation Contracts:${NC}"
-echo -e "  Admin:   https://sepolia-blockscout.lisk.com/address/$ADMIN_IMPL_ADDRESS"
-echo -e "  XPGems:  https://sepolia-blockscout.lisk.com/address/$XPGEMS_IMPL_ADDRESS"
-echo -e "  Badge:   https://sepolia-blockscout.lisk.com/address/$BADGE_IMPL_ADDRESS"
-echo -e "  Manager: https://sepolia-blockscout.lisk.com/address/$MANAGER_IMPL_ADDRESS"
+echo -e "  Admin:   https://celo-sepolia.blockscout.com/address/$ADMIN_IMPL_ADDRESS"
+echo -e "  XPGems:  https://celo-sepolia.blockscout.com/address/$XPGEMS_IMPL_ADDRESS"
+echo -e "  Badge:   https://celo-sepolia.blockscout.com/address/$BADGE_IMPL_ADDRESS"
+echo -e "  Manager: https://celo-sepolia.blockscout.com/address/$MANAGER_IMPL_ADDRESS"
 echo -e ""
 echo -e "${BLUE}Proxy Contracts (Use these):${NC}"
-echo -e "  Admin:   https://sepolia-blockscout.lisk.com/address/$ADMIN_ADDRESS"
-echo -e "  XPGems:  https://sepolia-blockscout.lisk.com/address/$XPGEMS_ADDRESS"
-echo -e "  Badge:   https://sepolia-blockscout.lisk.com/address/$BADGE_ADDRESS"
-echo -e "  Manager: https://sepolia-blockscout.lisk.com/address/$MANAGER_ADDRESS"
+echo -e "  Admin:   https://celo-sepolia.blockscout.com/address/$ADMIN_ADDRESS"
+echo -e "  XPGems:  https://celo-sepolia.blockscout.com/address/$XPGEMS_ADDRESS"
+echo -e "  Badge:   https://celo-sepolia.blockscout.com/address/$BADGE_ADDRESS"
+echo -e "  Manager: https://celo-sepolia.blockscout.com/address/$MANAGER_ADDRESS"

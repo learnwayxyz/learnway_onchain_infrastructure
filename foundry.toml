@@ -13,11 +13,13 @@ fs_permissions = [
 ]
 
 [rpc_endpoints]
+celo_sepolia = "https://forno.celo-sepolia.celo-testnet.org"
 lisk_sepolia = "https://rpc.sepolia-api.lisk.com"
 lisk_mainnet = "https://rpc.api.lisk.com"
 
 # Note: these are ignored by forge verify-contract for unknown chains (4202).
 # Always pass --verifier blockscout --verifier-url <url> --chain <chain> explicitly when verifying.
 [etherscan]
+celo_sepolia = { key = "ABCDEFG", url = "https://celo-sepolia.blockscout.com/api/" }
 lisk_sepolia = { key = "ABCDEFG", url = "https://sepolia-blockscout.lisk.com/api/" }
 lisk_mainnet = { key = "ABCDEFG", url = "https://blockscout.lisk.com/api/" }
