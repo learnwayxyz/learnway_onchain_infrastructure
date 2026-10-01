@@ -107,16 +107,7 @@ contract DeployLearnWay is Script {
         // 7. Setup roles and permissions
         console.log("\n7. Setting up roles and permissions...");
 
-        // grant all contracts ADMIN ROLE
-        bytes32 ADMIN_ROLE = keccak256("ADMIN_ROLE");
-        address[4] memory contractAddresses =
-            [xpGemsLessonAddress, badgesAddress, managerAddress, certificateAddress];
-        for (uint256 i = 0; i < 4; i++) {
-            admin.setUpRole(ADMIN_ROLE, contractAddresses[i]);
-            console.log("Granted ADMIN_ROLE to contract:", contractAddresses[i]);
-        }
-
-        // Grant MANAGER_ROLE to the LearnWayManager contract
+        // Grant MANAGER_ROLE to the LearnWayManager contract (no contract needs ADMIN_ROLE)
         bytes32 MANAGER_ROLE = keccak256("MANAGER_ROLE");
         admin.setUpRole(MANAGER_ROLE, managerAddress);
         console.log("Granted MANAGER_ROLE to LearnWayManager");

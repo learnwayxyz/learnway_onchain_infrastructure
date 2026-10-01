@@ -29,12 +29,7 @@ contract DeployCertificateAndUpgradeManager is Script {
         address certificateAddr = address(certificateProxy);
         console.log("Certificate proxy:", certificateAddr);
 
-        console.log("\n2. Granting ADMIN_ROLE to Certificate proxy...");
-        bytes32 ADMIN_ROLE = keccak256("ADMIN_ROLE");
-        LearnWayAdmin(adminProxy).setUpRole(ADMIN_ROLE, certificateAddr);
-        console.log("ADMIN_ROLE granted");
-
-        console.log("\n3. Upgrading LearnWayManager...");
+        console.log("\n2. Upgrading LearnWayManager...");
         LearnWayManager newManagerImpl = new LearnWayManager();
         console.log("New Manager implementation:", address(newManagerImpl));
 
